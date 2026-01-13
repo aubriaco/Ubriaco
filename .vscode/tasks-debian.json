@@ -1,0 +1,24 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "KILL DOTNET",
+            "command": "taskkill",
+            "type": "process",
+            "args": [
+                "/F", "/IM", "dotnet.exe", "/T"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Build",
+            "command": "bash",
+            "type": "process",
+            "args": [
+                "-c",
+                "./build.sh"
+            ],
+            "problemMatcher": []
+        }
+    ]
+}

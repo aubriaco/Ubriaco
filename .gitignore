@@ -1,0 +1,14 @@
+commit.sh
+bin/
+obj/
+.vs/
+packages/
+tmp/
+output/
+.fake
+git-pull.sh
+git-commit-push.sh
+google-cloud.json
+test-data/
+tessdata_fast/
+.vscode/tasks.json
