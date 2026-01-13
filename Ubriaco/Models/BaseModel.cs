@@ -604,7 +604,7 @@ namespace Ubriaco.Models
             }
         }
 
-        public virtual Task<long> InsertAsync(BaseConnection c, UTransaction tx, bool identityInsert = false, bool onlyEditable = false)
+        public virtual Task<long> InsertTXAsync(BaseConnection c, UTransaction tx, bool identityInsert = false, bool onlyEditable = false)
         {
             return InsertAsync(c, null, false, false, tx);
         }
@@ -707,7 +707,7 @@ namespace Ubriaco.Models
             }
         }
 
-        public virtual Task<bool> DeleteFromIdAsync(BaseConnection c, UTransaction tx)
+        public virtual Task<bool> DeleteFromIdTXAsync(BaseConnection c, UTransaction tx)
         {
             return DeleteFromIdAsync((NpgsqlConnection)c.C, null, tx);
         }
@@ -836,7 +836,7 @@ namespace Ubriaco.Models
             }
         }
 
-        public Task UpdateAsync(BaseConnection c, UTransaction? tx = null)
+        public Task UpdateTXAsync(BaseConnection c, UTransaction? tx = null)
         {
             return UpdateAsync(c, false, tx);
         }
