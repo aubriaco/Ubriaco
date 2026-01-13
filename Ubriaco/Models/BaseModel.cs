@@ -1,8 +1,8 @@
 /*---------------------------------------------------------------------------------------------
  *  Copyright (c) by Alessandro Ubriaco. All rights reserved.
  *--------------------------------------------------------------------------------------------*/
- 
- 
+
+
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -154,10 +154,10 @@ namespace Ubriaco.Models
                         f.SetValue(this, DateTime.Parse(QGetString(r, vname)));
                     else if (f.PropertyType == typeof(bool))
                         f.SetValue(this, r[vname] == DBNull.Value ? false : (QGetInt(r, vname) == 0 ? false : true));
-                    else 
+                    else
                     {
                         var t = f.PropertyType;
-                        f.SetValue(this, r[vname] == DBNull.Value ? null :  JsonConvert.DeserializeObject(r[vname].ToString() ?? string.Empty, t));
+                        f.SetValue(this, r[vname] == DBNull.Value ? null : JsonConvert.DeserializeObject(r[vname].ToString() ?? string.Empty, t));
                     }
                 }
                 catch (Exception e)
@@ -322,7 +322,7 @@ namespace Ubriaco.Models
                         f.SetValue(this, Convert.ToBoolean(o[f.Name]));
                     else if ((f.PropertyType == typeof(double) || f.PropertyType == typeof(float)) && o[f.Name] != null)
                         f.SetValue(this, Convert.ToDouble(o[f.Name]));
-                    else if(f.PropertyType == typeof(decimal))
+                    else if (f.PropertyType == typeof(decimal))
                         f.SetValue(this, Convert.ToDecimal(o[f.Name]));
                 }
                 catch (Exception e)
@@ -381,7 +381,7 @@ namespace Ubriaco.Models
                         f.SetValue(this, Convert.ToBoolean(dict[f.Name]));
                     else if ((f.PropertyType == typeof(double) || f.PropertyType == typeof(float)) && dict[f.Name] != null)
                         f.SetValue(this, Convert.ToDouble(dict[f.Name]));
-                    else if(f.PropertyType == typeof(decimal))
+                    else if (f.PropertyType == typeof(decimal))
                         f.SetValue(this, Convert.ToDecimal(dict[f.Name]));
                 }
                 catch (Exception e)
@@ -524,7 +524,7 @@ namespace Ubriaco.Models
                             cmd.Parameters.AddWithValue(f.Name, dt);
                     }
                 }
-                else if(f.PropertyType == typeof(string))
+                else if (f.PropertyType == typeof(string))
                 {
                     var _val = f.GetValue(this);
                     if (_val == null)
@@ -577,7 +577,7 @@ namespace Ubriaco.Models
         }
 
         // COMMON ENTRY ASYNC
-        public virtual async Task<long> InsertAsync(BaseConnection c, string? tableName = null, bool identityInsert = false, bool onlyEditable = false)
+        public virtual async Task<long> InsertAsync(BaseConnection c, string? tableName = null, bool identityInsert = false, bool onlyEditable = false, UTransaction? tx = null)
         {
             if (tableName == null) tableName = GetDefaultTable();
             string qvars = "", vvars = "";
@@ -596,12 +596,17 @@ namespace Ubriaco.Models
                 qvars += GetRealDataFieldName(f);
                 vvars += "@" + f.Name;
             }
-            using (NpgsqlCommand cmd = new NpgsqlCommand("INSERT INTO " + GetDefaultSchema() + "." + tableName + " (" + qvars + ") VALUES (" + vvars + ") RETURNING ID", c.C))
+            using (NpgsqlCommand cmd = new NpgsqlCommand("INSERT INTO " + GetDefaultSchema() + "." + tableName + " (" + qvars + ") VALUES (" + vvars + ") RETURNING ID", c.C, tx != null ? tx.T : null))
             {
                 PutParams(cmd, onlyEditable);
                 var r = await cmd.ExecuteScalarAsync();
                 return r == DBNull.Value ? 0 : Convert.ToInt64(r);
             }
+        }
+
+        public virtual Task<long> InsertAsync(BaseConnection c, UTransaction tx, bool identityInsert = false, bool onlyEditable = false)
+        {
+            return InsertAsync(c, null, false, false, tx);
         }
 
         public virtual async Task<long> TryInsertAsync(BaseConnection c, string? tableName = null, bool identityInsert = false, bool onlyEditable = false)
@@ -682,12 +687,12 @@ namespace Ubriaco.Models
             }
         }
 
-        public virtual async Task<bool> DeleteFromIdAsync(NpgsqlConnection c, string? tableName = null)
+        public virtual async Task<bool> DeleteFromIdAsync(NpgsqlConnection c, string? tableName = null, UTransaction? tx = null)
         {
             if (tableName == null) tableName = GetDefaultTable();
             try
             {
-                using (NpgsqlCommand cmd = new NpgsqlCommand("DELETE FROM " + GetDefaultSchema() + "." + tableName + " WHERE id=@ID", c))
+                using (NpgsqlCommand cmd = new NpgsqlCommand("DELETE FROM " + GetDefaultSchema() + "." + tableName + " WHERE id=@ID", c, tx != null ? tx.T : null))
                 {
                     cmd.Parameters.AddWithValue("@ID", ID);
                     await cmd.ExecuteNonQueryAsync();
@@ -702,9 +707,14 @@ namespace Ubriaco.Models
             }
         }
 
-        public virtual async Task<bool> DeleteFromIdAsync(BaseConnection c, string? tableName = null)
+        public virtual Task<bool> DeleteFromIdAsync(BaseConnection c, UTransaction tx)
         {
-            return await DeleteFromIdAsync((NpgsqlConnection)c.C, tableName);
+            return DeleteFromIdAsync((NpgsqlConnection)c.C, null, tx);
+        }
+
+        public virtual Task<bool> DeleteFromIdAsync(BaseConnection c, string? tableName = null)
+        {
+            return DeleteFromIdAsync((NpgsqlConnection)c.C, tableName);
         }
 
         public virtual bool DeleteFromId(BaseConnection c, string? tableName = null)
@@ -791,9 +801,9 @@ namespace Ubriaco.Models
 
         // COMMON ENTRY
 
-        public async Task UpdateAsync(BaseConnection c, bool onlyEditable = false)
+        public async Task UpdateAsync(BaseConnection c, bool onlyEditable = false, UTransaction? tx = null)
         {
-            if(c.C == null)
+            if (c.C == null)
                 throw new Exception("Connection is null.");
             string tableName = GetDefaultTable();
             string idName = "id";
@@ -814,7 +824,7 @@ namespace Ubriaco.Models
             DbCommand cmd;
             if (c.C.GetType() == typeof(NpgsqlConnection))
             {
-                using (cmd = new NpgsqlCommand("UPDATE " + GetDefaultSchema() + "." + tableName + " SET " + qvars + " WHERE " + idName + "=" + ID, (NpgsqlConnection)c.C))
+                using (cmd = new NpgsqlCommand("UPDATE " + GetDefaultSchema() + "." + tableName + " SET " + qvars + " WHERE " + idName + "=" + ID, (NpgsqlConnection)c.C, tx != null ? tx.T : null))
                 {
                     PutParams((NpgsqlCommand)cmd, onlyEditable);
                     await cmd.ExecuteNonQueryAsync();
@@ -824,6 +834,11 @@ namespace Ubriaco.Models
             {
                 throw new Exception("No DB type supported.");
             }
+        }
+
+        public Task UpdateAsync(BaseConnection c, UTransaction? tx = null)
+        {
+            return UpdateAsync(c, false, tx);
         }
 
         // COMMON ENTRY
@@ -989,7 +1004,7 @@ namespace Ubriaco.Models
 
         public virtual async Task<bool> SelectAsync(BaseConnection c, string _q, string? tableName = null, string? orderBy = null)
         {
-            if(c.C == null)
+            if (c.C == null)
                 throw new Exception("Connection is null.");
             string[] q;
             if (_q.Contains(','))
@@ -1029,7 +1044,7 @@ namespace Ubriaco.Models
             else
             {
                 throw new Exception("No DB type supported.");
-            }            
+            }
             return false;
         }
 
@@ -1068,7 +1083,7 @@ namespace Ubriaco.Models
             else
             {
                 throw new Exception("No DB type supported.");
-            }            
+            }
             return false;
         }
 
@@ -1126,7 +1141,7 @@ namespace Ubriaco.Models
             else
             {
                 throw new Exception("No DB type supported.");
-            }            
+            }
             return false;
         }
 
@@ -1165,7 +1180,7 @@ namespace Ubriaco.Models
             else
             {
                 throw new Exception("No DB type supported.");
-            }            
+            }
             return false;
         }
 
@@ -1184,7 +1199,7 @@ namespace Ubriaco.Models
 
         public virtual async Task<List<T>> ListAsync<T>(BaseConnection c, string q, string? tableName = null, string? sort = null, int limit = 0) where T : BaseModel
         {
-            if(c.C == null)
+            if (c.C == null)
                 throw new Exception("Connection is null.");
             List<T> list = new List<T>();
             if (tableName == null) tableName = GetDefaultTable();
@@ -1220,7 +1235,7 @@ namespace Ubriaco.Models
                         while (await r.ReadAsync())
                         {
                             T? item = (T?)Activator.CreateInstance(this.GetType());
-                            if(item == null)
+                            if (item == null)
                                 throw new Exception("Model is null.");
                             item.Populate(r);
                             list.Add(item);
@@ -1231,7 +1246,7 @@ namespace Ubriaco.Models
             else
             {
                 throw new Exception("No DB type supported.");
-            }            
+            }
             return list;
         }
 
@@ -1277,7 +1292,7 @@ namespace Ubriaco.Models
                         while (r.Read())
                         {
                             var item = (BaseModel?)Activator.CreateInstance(this.GetType());
-                            if(item == null)
+                            if (item == null)
                                 throw new Exception("Model is null.");
                             item.Populate(r);
                             list.Add(item);
@@ -1288,7 +1303,7 @@ namespace Ubriaco.Models
             else
             {
                 throw new Exception("No DB type supported.");
-            }            
+            }
             return list;
         }
 
@@ -1322,7 +1337,7 @@ namespace Ubriaco.Models
                         while (r.Read())
                         {
                             T? item = (T?)Activator.CreateInstance(this.GetType());
-                            if(item == null)
+                            if (item == null)
                                 throw new Exception("Model is null.");
                             item.Populate(r);
                             list.Add(item);
@@ -1333,7 +1348,7 @@ namespace Ubriaco.Models
             else
             {
                 throw new Exception("No DB type supported.");
-            }            
+            }
             return list;
         }
 
@@ -1375,7 +1390,7 @@ namespace Ubriaco.Models
                 else
                     return "TIMESTAMP" + (SQLV >= 6 ? " WITH TIME ZONE" : "");
             }
-            else if(f.PropertyType == typeof(DateOnly))
+            else if (f.PropertyType == typeof(DateOnly))
             {
                 return "DATE";
             }
@@ -1602,7 +1617,7 @@ namespace Ubriaco.Models
             //if (f.PropertyType.IsSubclassOf(typeof(BaseModel)))
             //    return f.Name.ToLower() + "_id";
             //else
-                return f.Name.ToLower();
+            return f.Name.ToLower();
         }
 
         private bool IsIdentity(PropertyInfo f)
@@ -1856,7 +1871,7 @@ namespace Ubriaco.Models
             if (fkName == null)
             {
                 var rgx = new Regex("[^a-zA-Z-]");
-                fkName = rgx.Replace(GetDefaultTable() + "_" + refTable + "_" +  refColumnName + "_fkey", "");
+                fkName = rgx.Replace(GetDefaultTable() + "_" + refTable + "_" + refColumnName + "_fkey", "");
             }
             ExecuteCommand(db, "ALTER TABLE IF EXISTS " + GetDefaultTable() + " ADD CONSTRAINT " + fkName.ToLower() + " FOREIGN KEY (" + columnName.ToLower() + ") REFERENCES " + refTable.ToLower() + " (" + refColumnName.ToLower() + ") ON UPDATE NO ACTION " + (deleteCascade ? "ON DELETE CASCADE" : "ON DELETE NO ACTION"));
         }
@@ -1866,7 +1881,7 @@ namespace Ubriaco.Models
             if (fkName == null)
             {
                 var rgx = new Regex("[^a-zA-Z-]");
-                fkName = rgx.Replace(GetDefaultTable() + "_" + refTable + "_" +  refColumnName + "_fkey", "");
+                fkName = rgx.Replace(GetDefaultTable() + "_" + refTable + "_" + refColumnName + "_fkey", "");
             }
             await ExecuteCommandAsync(db, "ALTER TABLE IF EXISTS " + GetDefaultTable() + " ADD CONSTRAINT " + fkName.ToLower() + " FOREIGN KEY (" + columnName.ToLower() + ") REFERENCES " + refTable.ToLower() + " (" + refColumnName.ToLower() + ") ON UPDATE NO ACTION " + (deleteCascade ? "ON DELETE CASCADE" : "ON DELETE NO ACTION"));
         }
@@ -1883,7 +1898,7 @@ namespace Ubriaco.Models
                 return false;
             }
         }
-        
+
         public async Task<bool> TryCreateForeignKeyAsync(BaseConnection db, string columnName, string refTable, string refColumnName, string? fkName = null, bool deleteCascade = false)
         {
             try
@@ -1917,12 +1932,12 @@ namespace Ubriaco.Models
 
         public async Task CreateIndexAsync(BaseConnection db, string indexDefinition, bool unique = false, string? indexName = null, bool gin = false)
         {
-            if(indexName == null)
+            if (indexName == null)
             {
                 var rgx = new Regex("[^a-zA-Z-]");
                 indexName = rgx.Replace(GetDefaultTable() + "_" + indexDefinition, "");
             }
-            await ExecuteCommandAsync(db, "CREATE " + (unique ? " UNIQUE " : "") + " INDEX " + indexName + " ON " + GetDefaultTable() + (gin ? " GIN " : " ") + "(" + indexDefinition + ")");            
+            await ExecuteCommandAsync(db, "CREATE " + (unique ? " UNIQUE " : "") + " INDEX " + indexName + " ON " + GetDefaultTable() + (gin ? " GIN " : " ") + "(" + indexDefinition + ")");
         }
 
         /// <summary>
@@ -2012,7 +2027,7 @@ namespace Ubriaco.Models
                 return false;
             }
         }
-        
+
         public async Task<bool> TryExecuteCommandAsync(BaseConnection db, string query)
         {
             try

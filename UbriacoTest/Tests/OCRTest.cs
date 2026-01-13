@@ -1,3 +1,6 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) by Solusek Systems. All rights reserved.
+ *--------------------------------------------------------------------------------------------*/
 
 using Ubriaco.Test;
 using Ubriaco.Test.Attributes;
@@ -12,7 +15,7 @@ public class OCRTest : BaseTest
 
     public override async Task RunAsync(string[] args)
     {
-        if(args.Length < 2)
+        if (args.Length < 2)
             throw new Exception("No argument.");
         var ocr = new OCRUtil("tessdata_fast");
         ocr.Process("spa", await File.ReadAllBytesAsync(args[1]));

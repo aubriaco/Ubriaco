@@ -1,3 +1,6 @@
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) by Solusek Systems. All rights reserved.
+ *--------------------------------------------------------------------------------------------*/
 
 using Ubriaco.Test;
 using Ubriaco.Test.Attributes;
@@ -14,10 +17,10 @@ public class NormalizeTestDataTest : BaseTest
     {
         var dir = Directory.GetFiles("test-data");
 
-        foreach(var fn in dir)
+        foreach (var fn in dir)
         {
-            string nn = fn.Replace(" ","_").ToLower();
-            if(fn != nn)
+            string nn = fn.Replace(" ", "_").ToLower();
+            if (fn != nn)
             {
                 File.Move(fn, nn);
                 Console.WriteLine("Renamed: " + nn);
