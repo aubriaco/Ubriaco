@@ -1,0 +1,1 @@
+copy .vscode\tasks-windows.json .vscode\tasks.json
