@@ -29,4 +29,24 @@ internal static class HTMLUtil
             }
         }
     }
+
+    public static void ProcessMatchesRawHTML(ref string body, IEnumerable<Match> matches)
+    {
+        foreach (Match m in matches)
+        {
+            string cont = m.Groups[1].Value;
+            string post = m.Groups[2].Value;
+            if (!string.IsNullOrWhiteSpace(m.Groups[1].Value))
+            {
+                if (!cont.Contains('>')
+                    && !post.ToLower().Contains("title")
+                    && !post.ToLower().Contains("script")
+                     && !post.ToLower().Contains("style"))
+                {
+                    var newValue = "<span class=\"lang\">" + cont.Trim() + "</span>";
+                    body = body.Replace(">" + cont + "<", ">" + newValue + "<");
+                }
+            }
+        }
+    }
 }
