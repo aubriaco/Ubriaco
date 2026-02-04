@@ -57,7 +57,7 @@ public class TranslateRawHTML : ToolBase
                                 try
                                 {
 
-                                    var matches = Regex.Matches(body, "{{getLang\\('([^\\)]+)'\\)}}");
+                                    var matches = Regex.Matches(body, @"<span class=""lang"">([^<)]+)</span>");
 
                                     foreach (Match match in matches)
                                     {
