@@ -41,7 +41,7 @@ public class TransactionTest : BaseTest
                 Name = "AAA",
                 N = 1
             };
-            item.ID = await item.InsertAsync(db, tx);
+            item.ID = await item.InsertTXAsync(db, tx);
             Console.WriteLine("INSERT");
 
             var itemB = new TestData()
@@ -49,7 +49,7 @@ public class TransactionTest : BaseTest
                 Name = "BBB",
                 N = 3
             };
-            itemB.ID = await itemB.InsertAsync(db, tx);
+            itemB.ID = await itemB.InsertTXAsync(db, tx);
             Console.WriteLine("INSERT");
 
             //throw new Exception("ZZZZ");   // throw expection to test rollback
