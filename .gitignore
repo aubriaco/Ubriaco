@@ -12,3 +12,5 @@ google-cloud.json
 test-data/
 tessdata_fast/
 .vscode/tasks.json
+dict.csv
+dict.json
