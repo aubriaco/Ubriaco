@@ -5,6 +5,8 @@
 using System.Diagnostics;
 using System.Text;
 
+namespace Ubriaco.Util;
+
 public static class CertUtil
 {
     public static async Task<byte[]> GenerateAsync()
