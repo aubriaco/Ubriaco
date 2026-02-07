@@ -1278,7 +1278,7 @@ namespace Ubriaco.Models
         }
 
 
-        public virtual async Task<List<Dictionary<string, object>>> DataAsync<T>(BaseConnection c, string q, string? tableName = null, string? sort = null, int limit = 0) where T : BaseModel
+        public virtual async Task<List<Dictionary<string, object>>> DataAsync(BaseConnection c, string q, string? tableName = null, string? sort = null, int limit = 0)
         {
             if (c.C == null)
                 throw new Exception("Connection is null.");
