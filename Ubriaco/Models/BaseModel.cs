@@ -171,6 +171,33 @@ namespace Ubriaco.Models
 
         }
 
+        public virtual Dictionary<string, object> PopulateDict(DbDataReader r)
+        {
+            var dict = new Dictionary<string, object>();
+            PropertyInfo[] fields = this.GetType().GetProperties();
+            foreach (PropertyInfo f in fields)
+            {
+                string vname = GetRealDataFieldName(f);
+
+                try
+                {
+                    if (r[vname] == DBNull.Value)
+                        continue;
+
+                    dict.Add(vname, r[vname]);
+
+                }
+                catch (Exception e)
+                {
+                    if (vname == "ID")
+                        Debug.WriteLine("Table has no ID.");
+                    else
+                        Debug.WriteLine(e.Message);
+                }
+            }
+            return dict;
+        }
+
         public virtual void PopulateFromJsonElement(JsonElement o)
         {
             var inObj = (BaseModel?)o.Deserialize(this.GetType(), new JsonSerializerOptions()
@@ -1239,6 +1266,57 @@ namespace Ubriaco.Models
                                 throw new Exception("Model is null.");
                             item.Populate(r);
                             list.Add(item);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                throw new Exception("No DB type supported.");
+            }
+            return list;
+        }
+
+
+        public virtual async Task<List<Dictionary<string, object>>> DataAsync<T>(BaseConnection c, string q, string? tableName = null, string? sort = null, int limit = 0) where T : BaseModel
+        {
+            if (c.C == null)
+                throw new Exception("Connection is null.");
+            List<Dictionary<string, object>> list = new List<Dictionary<string, object>>();
+            if (tableName == null) tableName = GetDefaultTable();
+            PropertyInfo[] fields = this.GetType().GetProperties();
+            string qvars = "";
+            if (q != null)
+            {
+                string[] qq;
+                if (q.Contains(','))
+                    qq = q.Split(',');
+                else
+                    qq = new string[] { q };
+
+                foreach (PropertyInfo f in fields)
+                {
+                    if (!qq.Contains(f.Name))
+                        continue;
+                    if (qvars.Length > 0)
+                    {
+                        qvars += " AND ";
+                    }
+                    qvars += GetRealDataFieldName(f) + "=@" + f.Name;
+                }
+            }
+            DbCommand cmd;
+            if (c.C.GetType() == typeof(NpgsqlConnection))
+            {
+                using (cmd = new NpgsqlCommand("SELECT * FROM " + GetDefaultSchema() + "." + tableName + (qvars.Length > 0 ? " WHERE " + qvars : "") + (sort != null ? " ORDER BY " + sort : "") + (limit != 0 ? " LIMIT " + limit : ""), (NpgsqlConnection)c.C))
+                {
+                    PutParams((NpgsqlCommand)cmd);
+                    using (DbDataReader r = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await r.ReadAsync())
+                        {
+                            var dict = PopulateDict(r);
+                            list.Add(dict);
                         }
                     }
                 }
