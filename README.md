@@ -170,6 +170,26 @@ using(var db = await Database.CreateAsync())
 }
 ```
 
+Breakdown and Dependencies
+-------------
+
+`Ubriaco.dll` -> Serialize data models into SQL queries
+
+```text
+    Newtonsoft.Json -> JSON Parsing
+    Npgsql -> PostgreSQL Database Client
+    Microsoft.Data.SqlClient -> SQL Server Database Client
+```
+
+`UbriacoUtil.dll` -> Simplified procedures and wrappers which include Cache, Storage, Rotating Encryption, OCR, Locks (for flood protection), AES256, SMTP, Version handling
+
+```text
+    StackExchange.Redis -> Redis used for sessions and data cache
+    Tesseract -> OCR
+    AWSSDK.S3 -> S3 AWS Storage
+    Google.Cloud.Storage.V1 -> Google Storage
+```
+
 Author
 -------------
 
