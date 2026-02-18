@@ -19,7 +19,7 @@ using Ubriaco.Attributes;
 namespace Ubriaco.Models;
 
 // M to avoid confusion
-public class MSQLBaseModel
+public class MSQLBaseModel : RootModel
 {
     public static DateTime MinDT = DateTime.Parse("1753-1-1"); // this has something to do with SQL
 
