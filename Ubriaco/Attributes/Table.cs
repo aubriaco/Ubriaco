@@ -1,18 +1,15 @@
 /*---------------------------------------------------------------------------------------------
  *  Copyright (c) by Alessandro Ubriaco. All rights reserved.
  *--------------------------------------------------------------------------------------------*/
- 
- 
+
+namespace Ubriaco.Attributes;
 
 
-namespace Ubriaco.Attributes
+public class Table : Attribute
 {
-    public class Table : Attribute
+    public string Name;
+    public Table(string name)
     {
-        public string Name;
-        public Table(string name)
-        {
-            Name = name;
-        }
+        Name = name;
     }
 }
