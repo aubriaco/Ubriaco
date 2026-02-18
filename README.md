@@ -1,7 +1,7 @@
 Ubriaco.dll
 =======
 
-Welcome to the C#/PostgreSQL data layer and utilities library.
+Welcome to the C#, PostgreSQL, SQL Server data layer and utilities library.
 
 Ubriaco.dll maps class objects directly into PostgreSQL tables. Automatically creates SELECT/INSERT/UPDATE queries for every data model.
 
