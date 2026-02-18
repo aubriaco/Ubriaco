@@ -199,4 +199,4 @@ Alessandro Ubriaco
 Notes from Author
 -------------
 
-Please excuse my brevity in the commit messages and various 'x'. Most changes are done under pressure.
+Please excuse my brevity in the commit messages and various 'x'. Most changes are done under pressure. And I do trigger-happy commit.
