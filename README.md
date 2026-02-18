@@ -15,7 +15,7 @@ Run: `./build.sh` or `dotnet build -c Release`
 Example
 -------------
 
-C# .NET 8 (also supports .NET 6)
+C# .NET 10 and .NET 8 (also supports .NET 6)
 
 A model for table `public.bookpage`.
 
