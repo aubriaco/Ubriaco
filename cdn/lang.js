@@ -21,6 +21,7 @@ var Lang = {};
 var CurrentLangItem = Languages[0];
 var CurrentLang = CurrentLangItem.ident;
 var CurrentLangName = CurrentLangItem.name;
+var Lang_DefaultIdent = 'en';
 
 
 function lang_qget(loc, successCallback, errorCallback, local) {
@@ -176,7 +177,7 @@ function lang_get_by_loc() {
             return qs;
         }
     }
-    return 'en';
+    return Lang_DefaultIdent;
 }
 
 document.addEventListener('DOMContentLoaded', function () {
