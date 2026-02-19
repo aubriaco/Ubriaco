@@ -1,7 +1,7 @@
 Ubriaco.dll
 =======
 
-Welcome to the C#/PostgreSQL data layer and utilities library.
+Welcome to the C#, PostgreSQL, SQL Server data layer and utilities library.
 
 Ubriaco.dll maps class objects directly into PostgreSQL tables. Automatically creates SELECT/INSERT/UPDATE queries for every data model.
 
@@ -15,7 +15,7 @@ Run: `./build.sh` or `dotnet build -c Release`
 Example
 -------------
 
-C# .NET 8 (also supports .NET 6)
+C# .NET 10 and .NET 8 (also supports .NET 6)
 
 A model for table `public.bookpage`.
 
@@ -168,6 +168,26 @@ using(var db = await Database.CreateAsync())
         Console.WriteLine($"No BookPage rows with BookID {bookPage.ID} found.")
     }
 }
+```
+
+Breakdown and Dependencies
+-------------
+
+`Ubriaco.dll` -> Serialize data models into SQL queries
+
+```text
+    Newtonsoft.Json -> JSON Parsing
+    Npgsql -> PostgreSQL Database Client
+    Microsoft.Data.SqlClient -> SQL Server Database Client
+```
+
+`UbriacoUtil.dll` -> Simplified procedures and wrappers which include Cache, Storage, Rotating Encryption, OCR, Locks (for flood protection), AES256, SMTP, Version handling
+
+```text
+    StackExchange.Redis -> Redis used for sessions and data cache
+    Tesseract -> OCR
+    AWSSDK.S3 -> S3 AWS Storage
+    Google.Cloud.Storage.V1 -> Google Storage
 ```
 
 Author
