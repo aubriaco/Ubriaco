@@ -195,3 +195,8 @@ Author
 
 Alessandro Ubriaco
 [www.alessandroubriaco.com](https://alessandroubriaco.com)
+
+Notes from Author
+-------------
+
+Please excuse my brevity in the commit messages and various 'x'. Most changes are done under pressure. And I do trigger-happy commit.
