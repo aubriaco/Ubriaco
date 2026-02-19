@@ -62,7 +62,8 @@ public class TranslateRawHTML : ToolBase
                                     foreach (Match match in matches)
                                     {
                                         string en = match.Groups[1].Value;
-                                        en = en.Replace("\\'", "'");
+                                        en = en.Replace("\\'", "'").Replace("\n", " ").Replace("\r", " ").Trim();
+                                        while (en.Contains("  ")) en = en.Replace("  ", " ");
                                         if (used.Contains(en))
                                             continue;
                                         used.Add(en);

@@ -107,6 +107,8 @@ function getCurrentLangItem() {
 }
 
 function getLang(a) {
+    a = a.replace(/\n/g, ' ', /\r/, ' ').trim();
+    while (a.indexOf('  ') >= 0) a = a.replace('  ', ' ');
     if (Lang && Lang[a] && Lang[a][CurrentLang]) {
         return Lang[a][CurrentLang];
     }
