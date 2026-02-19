@@ -2,14 +2,11 @@
  *  Copyright (c) by Solusek Systems. All rights reserved.
  *--------------------------------------------------------------------------------------------*/
 
-namespace BridgeData.Attributes
+namespace Ubriaco.Attributes;
+
+public class MSQLTable : Table
 {
-    public class MSQLTable : Attribute
+    public MSQLTable(string name) : base(name)
     {
-        public string Name;
-        public MSQLTable(string name)
-        {
-            Name = name;
-        }
     }
 }
