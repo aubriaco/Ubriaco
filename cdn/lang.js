@@ -176,7 +176,7 @@ function lang_get_by_loc() {
             return qs;
         }
     }
-    return 'es';
+    return 'en';
 }
 
 document.addEventListener('DOMContentLoaded', function () {
