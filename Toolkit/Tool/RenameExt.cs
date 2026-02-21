@@ -3,7 +3,7 @@ using Ubriaco.Toolkit;
 
 namespace Ubriaco.Toolkit;
 
-[Tool("rename-ext-and-inc")]
+[Tool("rename-ext")]
 public class RenameExt : ToolBase
 {
     public override async Task RunAsync(string[] args)
