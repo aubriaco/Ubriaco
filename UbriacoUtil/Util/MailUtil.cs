@@ -41,13 +41,13 @@ namespace Ubriaco.Util
             Init(config.host, config.username, config.password, config.mailer);
         }
 
-        public static void Init(string host, string username, string password, string mailer)
+        public static void Init(string host, string username, string password, string mailer, int port = 587)
         {
             SMTPHost = host;
             SMTPMailer = mailer;
             SMTPUsername = username;
             SMTPPassword = password;
-            SMTPPort = 587;
+            SMTPPort = port;
             SMTPSecure = true;
             if (File.Exists("const/email.html"))
                 TplContent = File.ReadAllText("const/email.html");
