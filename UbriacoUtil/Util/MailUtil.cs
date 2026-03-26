@@ -1,8 +1,8 @@
 /*---------------------------------------------------------------------------------------------
  *  Copyright (c) by Alessandro Ubriaco. All rights reserved.
  *--------------------------------------------------------------------------------------------*/
- 
- 
+
+
 
 using Newtonsoft.Json;
 using System.Net;
@@ -30,6 +30,7 @@ namespace Ubriaco.Util
             public string mailer { get; set; } = string.Empty;
             public string username { get; set; } = string.Empty;
             public string password { get; set; } = string.Empty;
+            public int port { get; set; } = 465;
         }
 
         public static void LoadConfig(string configFile)
@@ -74,7 +75,7 @@ namespace Ubriaco.Util
                 Console.WriteLine("MailUtil: Failed to load logo.");
         }
 
-      
+
         public static bool EmailIsOK(string email)
         {
             email = email.ToLower().Trim();
@@ -105,7 +106,7 @@ namespace Ubriaco.Util
 
             var domain = email.Substring(email.IndexOf('@') + 1);
 
-            if(checkBlackList)
+            if (checkBlackList)
             {
                 if (Blacklist.Contains(domain))
                     return false;
@@ -277,6 +278,6 @@ namespace Ubriaco.Util
             return true;
         }
 
- 
+
     }
 }
