@@ -64,6 +64,7 @@ internal static class HTMLUtil
                     && !m.Groups[1].Value.Contains('(')
                     && !m.Groups[1].Value.Contains(')')
                     && !m.Groups[1].Value.Contains(':')
+                    && m.Groups[1].Value.Trim() != ","
                     && !m.Groups[1].Value.Contains(" ? ")
                     && !m.Groups[1].Value.Contains("&&")
                     && !m.Groups[1].Value.Contains("return"))

@@ -23,6 +23,15 @@ public class ProcessReactJS : ToolBase
 
                 HTMLUtil.ProcessMatchesReactJS(ref body, matches);
 
+                body = body.Replace("<L><L>", "<L>").Replace("</L></L>", "</L>");
+
+
+                //if (!body.Contains("import L from"))
+                //{
+                //int idx = body.IndexOf("*--------------------------------------------------------------------------------------------*/\n");
+                //body = body.Insert(idx, "\nimport L from \"./Lang\"\n");
+                //}
+
                 System.IO.File.WriteAllText(file, body);
                 Console.WriteLine("Success: " + file);
             }
