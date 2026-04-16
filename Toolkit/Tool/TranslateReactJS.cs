@@ -48,10 +48,10 @@ public class TranslateReactJS : ToolBase
 
         if (File.Exists("dict.json")) File.Delete("dict.json");
 
- 
+
         LangUtil.Init("google-cloud.json");
 
-        var files = Directory.GetFiles(args[1], "*.js", SearchOption.AllDirectories);
+        var files = Directory.GetFiles(args[1], "*.jsx", SearchOption.AllDirectories);
         using (var jsonFile = File.OpenWrite("dict.json"))
         {
             using (var jsonWriter = new StreamWriter(jsonFile, Encoding.UTF8))

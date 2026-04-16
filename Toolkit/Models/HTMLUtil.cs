@@ -49,4 +49,29 @@ internal static class HTMLUtil
             }
         }
     }
+
+    public static void ProcessMatchesReactJS(ref string body, IEnumerable<Match> matches)
+    {
+        foreach (Match m in matches)
+        {
+
+            if (!string.IsNullOrWhiteSpace(m.Groups[1].Value))
+            {
+                if (!m.Groups[1].Value.Contains('{')
+                && !m.Groups[1].Value.Contains('}')
+                    && !m.Groups[1].Value.Contains('>')
+                    && !m.Groups[1].Value.Contains('<')
+                    && !m.Groups[1].Value.Contains('(')
+                    && !m.Groups[1].Value.Contains(')')
+                    && !m.Groups[1].Value.Contains(':')
+                    && !m.Groups[1].Value.Contains(" ? ")
+                    && !m.Groups[1].Value.Contains("&&")
+                    && !m.Groups[1].Value.Contains("return"))
+                {
+                    var newValue = "<L>" + m.Groups[1].Value.Trim() + "</L>";
+                    body = body.Replace(">" + m.Groups[1].Value + "<", ">" + newValue + "<");
+                }
+            }
+        }
+    }
 }
