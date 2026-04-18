@@ -1,8 +1,8 @@
 /*---------------------------------------------------------------------------------------------
  *  Copyright (c) by Alessandro Ubriaco. All rights reserved.
  *--------------------------------------------------------------------------------------------*/
- 
- 
+
+
 
 using StackExchange.Redis;
 
@@ -44,7 +44,7 @@ namespace Ubriaco.Util
         /// </summary>
         public RedisUtil(bool noAutoConnect = false)
         {
-            if(!noAutoConnect)
+            if (!noAutoConnect)
                 Connect();
         }
 
@@ -82,7 +82,7 @@ namespace Ubriaco.Util
         }
 
 
-        
+
         /// <summary>
         /// Retrieves the value associated with the specified key from Redis.
         /// </summary>
@@ -358,6 +358,26 @@ namespace Ubriaco.Util
             }
         }
 
+        public async Task<string?> PeekAsync(string key)
+        {
+            try
+            {
+                var db = R.GetDatabase();
+                var value = await db.ListRangeAsync(key, -1, -1);
+
+                if (value.Length > 0)
+                {
+                    return value[0];
+                }
+
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
 
         /// <summary>
         /// Gets the length of a list.
@@ -428,7 +448,7 @@ namespace Ubriaco.Util
         /// </summary>
         public async void Dispose()
         {
-            if(AsyncMode)
+            if (AsyncMode)
                 R?.DisposeAsync();
             else
                 R.Dispose();
