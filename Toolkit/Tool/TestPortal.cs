@@ -10,8 +10,9 @@ public class TestPortal : ToolBase
 {
     protected ToolConfig? TConfig;
     protected IBrowser? Browser;
-    protected Queue<TestResult> TestQueue { get; set; } = new Queue<TestResult>();
-    protected Dictionary<string, TestResult> TestsResults = new Dictionary<string, TestResult>();
+    protected IPage? Page;
+    protected Dictionary<string, TestResult> TestResults = new Dictionary<string, TestResult>();
+    protected string BaseURL = string.Empty;
 
     public override async Task RunAsync(string[] args)
     {
@@ -24,7 +25,11 @@ public class TestPortal : ToolBase
 
         TConfig = JsonConvert.DeserializeObject<ToolConfig>(configData);
 
+        if (TConfig == null) throw new Exception("FAILED TO LOAD CONFIG");
 
+        var uri = new Uri(TConfig.LoginURL);
+
+        BaseURL = $"{uri.Scheme}://{uri.Host}";
 
         using var playwright = await Playwright.CreateAsync();
 
@@ -33,9 +38,10 @@ public class TestPortal : ToolBase
             Headless = true
         });
 
+
         Browser = browser;
 
-        TestQueue.Enqueue(new TestResult()
+        TestResults.Add(TConfig.LoginURL, new TestResult()
         {
             URL = TConfig.LoginURL,
             IsLogin = true
@@ -47,10 +53,17 @@ public class TestPortal : ToolBase
 
     protected async Task BrowseAndTest()
     {
-        while (TestQueue.Count > 0)
+        while (TestResults.Any(x => !x.Value.IsTested))
         {
-            var tr = TestQueue.Dequeue();
-            await BrowseAndTestProcess(tr);
+            var tr = TestResults.FirstOrDefault(x => !x.Value.IsTested);
+            try
+            {
+                await BrowseAndTestProcess(tr.Value);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("EXCEPTION: " + ex.Message);
+            }
             await Task.Delay(1000);
         }
     }
@@ -59,7 +72,14 @@ public class TestPortal : ToolBase
     {
         if (TConfig == null) throw new Exception("WHAT CONFIG?");
         if (Browser == null) throw new Exception("WHAT BROWSER?");
-        var page = await Browser.NewPageAsync();
+
+        if (Page == null)
+            Page = await Browser.NewPageAsync();
+
+        var page = Page;
+
+
+
         Console.WriteLine("Browse: " + tr.URL);
         await page.GotoAsync(tr.URL);
 
@@ -73,7 +93,56 @@ public class TestPortal : ToolBase
 
         var content = await page.ContentAsync();
 
-        Console.WriteLine("CONTENT: " + content);
+        //Console.WriteLine("CONTENT: " + content);
+
+        await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+
+
+        content = await page.ContentAsync();
+        Console.WriteLine("PAGE URL: " + page.Url);
+
+        //Console.WriteLine("CONTENT (2): " + content);
+
+        page.PageError += (_, e) =>
+        {
+            Console.WriteLine("JS ERROR: " + e);
+            tr.PageError += e;
+        };
+
+        page.Console += (_, msg) =>
+        {
+            if (msg.Type == "error")
+            {
+                Console.WriteLine("CONSOLE ERROR: " + msg.Text);
+                tr.ConsoleError += msg.Text;
+            }
+        };
+
+        // set is tested
+        tr.IsTested = true;
+
+        var bodyOpenIdx = content.ToLower().IndexOf("<body>");
+        var bodyCloseIdx = content.ToLower().IndexOf("</body>");
+
+        var regex = new Regex(@"href=""([^""]+)""");
+
+        var matches = regex.Matches(content);
+
+        foreach (Match match in matches)
+        {
+            if (match.Index > bodyOpenIdx && match.Index < bodyCloseIdx)
+            {
+                var url = match.Groups[1].Value;
+                if (!TestResults.ContainsKey(BaseURL + url))
+                {
+                    Console.WriteLine("Adding URL: " + BaseURL + url);
+                    TestResults.Add(BaseURL + url, new TestResult()
+                    {
+                        URL = BaseURL + url
+                    });
+                }
+            }
+        }
     }
 
     // Classes
@@ -94,5 +163,7 @@ public class TestPortal : ToolBase
         public bool IsTested { get; set; } = false;
         public bool IsError { get; set; } = false;
         public bool IsLogin { get; set; } = false;
+        public string PageError { get; set; } = string.Empty;
+        public string ConsoleError { get; set; } = string.Empty;
     }
 }
