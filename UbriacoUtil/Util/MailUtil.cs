@@ -209,7 +209,8 @@ namespace Ubriaco.Util
         }
 
 
-        public static async Task<bool> SendAsync(string to, string subject, string body, string? link = null, string? linkText = null, List<Attachment>? attachments = null, string? replyTo = null, string? mailer = null)
+        public static async Task<bool> SendAsync(string to, string subject, string body, string? link = null, string? linkText = null, List<Attachment>? attachments = null, string? replyTo = null, string? mailer = null,
+            string? appUrl = null)
         {
             if (TplContent == null || string.IsNullOrEmpty(SMTPMailer) || string.IsNullOrEmpty(SMTPHost))
                 throw new Exception("MailUtil: Not configured.");
@@ -234,6 +235,9 @@ namespace Ubriaco.Util
                 body += FooterHTML;
 
             string content = TplContent;
+
+            if (appUrl != null)
+                content = content.Replace("%(APPURL)", appUrl);
 
             content = content.Replace("%(SUBJECT)", subject).Replace("%(BODY)", body);
 
