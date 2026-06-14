@@ -10,12 +10,12 @@ public class ECEncrypt : ToolBase
 {
     public override async Task RunAsync(string[] args)
     {
-        if (args.Length < 3)
+        if (args.Length < 4)
             throw new Exception("Missing argument (3): src dst pubkey");
 
-        var src = args[0];
-        var dst = args[1];
-        var pubkey = args[2];
+        var src = args[1];
+        var dst = args[2];
+        var pubkey = args[3];
 
         var enc = ECUtil.Encrypt(await File.ReadAllTextAsync(src), pubkey);
         await File.WriteAllTextAsync(dst, JsonConvert.SerializeObject(enc));
