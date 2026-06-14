@@ -11,7 +11,7 @@ public class ECEncrypt : ToolBase
     public override async Task RunAsync(string[] args)
     {
         if (args.Length < 4)
-            throw new Exception("Missing argument (3): src dst pubkey");
+            throw new Exception("Missing argument (4): ec-encrypt src dst pubkey");
 
         var src = args[1];
         var dst = args[2];
