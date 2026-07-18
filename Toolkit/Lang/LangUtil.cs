@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Ubriaco.Util;
 
 namespace Ubriaco.Toolkit;
 
@@ -47,6 +48,37 @@ public static class LangUtil
         var translation = response.Translations[0];
 
         var t = translation.TranslatedText;
+
+        if (inputText[0] >= 'A' && inputText[0] <= 'Z')
+        {
+            var f = t.Substring(0, 1);
+            if (t.Length > 1)
+                t = f.ToUpper() + t.Substring(1);
+            else
+                t = f.ToUpper();
+        }
+        else if (inputText[0] >= 'a' && inputText[0] <= 'z')
+        {
+            var f = t.Substring(0, 1);
+            if (t.Length > 1)
+                t = f.ToLower() + t.Substring(1);
+            else
+                t = f.ToLower();
+        }
+        return t;
+    }
+
+    public static async Task<string> TranslateAI(string inputText, string toLang = "Spanish")
+    {
+        if (string.IsNullOrEmpty(inputText))
+            return inputText;
+
+        var ai = new AIU("http://192.168.0.7:11434");
+        var resp = await ai.SendRequestReturnDetail($"Translate the following message from English to ${toLang}, return only the result:\n{inputText}", "gemma4");
+
+        var t = resp.Response;
+
+        if (string.IsNullOrWhiteSpace(t)) throw new Exception("ERROR ON AI: " + resp.ErrorMessage);
 
         if (inputText[0] >= 'A' && inputText[0] <= 'Z')
         {
