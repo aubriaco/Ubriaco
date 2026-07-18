@@ -10,7 +10,7 @@ public class ECGenerate : ToolBase
     public override async Task RunAsync(string[] args)
     {
         var kp = ECUtil.GenerateKeyPair();
-        await File.WriteAllTextAsync("output.txt", $"PRIV: {kp.PRIV}\nPUB: {kp.PUB}\n");
+        await File.WriteAllTextAsync("output.txt", $"PUB-ENC: {kp.PUB}\nPRIV-DEC: {kp.PRIV}\n");
 
         var data = ECUtil.Encrypt("test1", kp.PUB);
 
