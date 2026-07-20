@@ -12,6 +12,8 @@ public class ECGenerate : ToolBase
         var kp = ECUtil.GenerateKeyPair();
         await File.WriteAllTextAsync("output.txt", $"PUB-ENC: {kp.PUB}\nPRIV-DEC: {kp.PRIV}\n");
 
+        Console.WriteLine("Wrote to file: output.txt");
+
         var data = ECUtil.Encrypt("test1", kp.PUB);
 
         Console.WriteLine("Encrypt OK: " + data.CipherText);
