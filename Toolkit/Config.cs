@@ -17,7 +17,7 @@ public class Config
 
     public _AI AI { get; set; } = new _AI();
 
-    public static void Load(string fn = "config.json")
+    public static void Load(string fn = "toolkit-config.json")
     {
         var o = JsonConvert.DeserializeObject<Config>(File.ReadAllText(fn));
         if (o == null) throw new Exception("Failed to load config.");
