@@ -73,7 +73,7 @@ public static class LangUtil
         if (string.IsNullOrEmpty(inputText))
             return inputText;
 
-        var ai = new AIU("http://192.168.0.7:11434");
+        var ai = new AIU(Config.I.AI.Host);
         var resp = await ai.SendRequestReturnDetail($"Translate the following message from English to ${toLang}, return only the result:\n{inputText}", "gemma4");
 
         var t = resp.Response;

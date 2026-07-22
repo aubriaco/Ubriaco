@@ -109,7 +109,7 @@ public class TranslateReactJS : ToolBase
                                             if (used.Contains(dictName))
                                                 continue;
                                             used.Add(dictName);
-                                            string es = LangUtil.Translate(en, "es-ES");
+                                            string es = await LangUtil.TranslateAI(en, "Spanish");
 
 
 

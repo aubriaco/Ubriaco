@@ -12,6 +12,7 @@ using System.Text.RegularExpressions;
 using Ubriaco.Toolkit;
 using Ubriaco.Toolkit.Models;
 
+Config.Load();
 
 var assemblies = AppDomain.CurrentDomain.GetAssemblies();
 

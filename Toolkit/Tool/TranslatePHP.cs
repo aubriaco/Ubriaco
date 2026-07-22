@@ -66,7 +66,7 @@ public class TranslatePHP : ToolBase
                                         if (used.Contains(en))
                                             continue;
                                         used.Add(en);
-                                        string es = LangUtil.Translate(en, "es-ES");
+                                        string es = await LangUtil.TranslateAI(en, "Spanish");
                                         dict.Add(en, new LangItem()
                                         {
                                             en = en,
