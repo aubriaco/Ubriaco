@@ -34,7 +34,7 @@ public class TranslateRawHTML : ToolBase
 
         if (File.Exists("dict.json")) File.Delete("dict.json");
 
-        LangUtil.Init("google-cloud.json");
+        //LangUtil.Init("google-cloud.json");
 
         var files = Directory.GetFiles(args[1], "*.html", SearchOption.AllDirectories);
         using (var jsonFile = File.OpenWrite("dict.json"))

@@ -38,7 +38,7 @@ public class TranslateASPX : ToolBase
 
         if (File.Exists("dict.json")) File.Delete("dict.json");
 
-        LangUtil.Init("google-cloud.json");
+        //LangUtil.Init("google-cloud.json");
 
         var files = Directory.GetFiles(args[1], "*.aspx", SearchOption.AllDirectories);
         using (var jsonFile = File.OpenWrite("dict.json"))
@@ -56,9 +56,9 @@ public class TranslateASPX : ToolBase
                             csv.NextRecord();
                             foreach (var file in files)
                             {
-                                Console.WriteLine("FILE: " + file);   
+                                Console.WriteLine("FILE: " + file);
                                 ProcessFile(file);
-                                
+
 
                             }
                             csvFile.Flush();
@@ -71,7 +71,7 @@ public class TranslateASPX : ToolBase
             }
             Console.WriteLine("DONE");
         }
-        
+
     }
 
     private class TRA
@@ -94,14 +94,14 @@ public class TranslateASPX : ToolBase
             }
         }
     }
-    
+
 
     private void ProcessFile(string file)
     {
-        if(file.EndsWith("frmPatientTM.aspx") || file.EndsWith("frmPatientTMV2.aspx"))
+        if (file.EndsWith("frmPatientTM.aspx") || file.EndsWith("frmPatientTMV2.aspx"))
             return;
 
-        if(file.Contains("\\obj\\") || file.Contains("/obj/") || file.Contains("\\bin\\") || file.Contains("/bin/"))
+        if (file.Contains("\\obj\\") || file.Contains("/obj/") || file.Contains("\\bin\\") || file.Contains("/bin/"))
             return;
         var body = System.IO.File.ReadAllText(file);
         var regex = new Regex(@">([^<]+)");
@@ -113,26 +113,26 @@ public class TranslateASPX : ToolBase
         Console.WriteLine("Matching...");
         var matches = regex.Matches(body);
 
-        foreach(Match match in matches)
+        foreach (Match match in matches)
         {
             var val = match.Groups[1].Value;
-            if(string.IsNullOrWhiteSpace(val))
+            if (string.IsNullOrWhiteSpace(val))
                 continue;
-            if(val.Contains("{") || val.Contains("}") || val.Contains("<") || val.Contains(">") || val.Contains(";") || val.Contains('\'') || val.Contains("#") || val.Contains("&&")
+            if (val.Contains("{") || val.Contains("}") || val.Contains("<") || val.Contains(">") || val.Contains(";") || val.Contains('\'') || val.Contains("#") || val.Contains("&&")
                 || val.Contains("+") || val.Contains("=") || val.ToUpper() == "ID")
                 continue;
-            if(!ShouldTranslate(body, match.Groups[1].Index))
+            if (!ShouldTranslate(body, match.Groups[1].Index))
                 continue;
             Console.WriteLine("MATCH: " + match.Groups[1].Value);
             try
             {
-                if(IsTranslated(body, match.Groups[1].Value))
+                if (IsTranslated(body, match.Groups[1].Value))
                 {
                     Console.WriteLine("Already translated.");
                     continue;
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Console.WriteLine("ERR: " + ex.Message);
                 continue;
@@ -146,9 +146,9 @@ public class TranslateASPX : ToolBase
             });
         }
 
-        list.Sort((a,b) => b.Content.Length.CompareTo(a.Content.Length));
+        list.Sort((a, b) => b.Content.Length.CompareTo(a.Content.Length));
 
-        foreach(var phrase in list)
+        foreach (var phrase in list)
         {
             ProcessPhrase(phrase.Phrase);
             body = body.Remove(phrase.Index, phrase.Length).Insert(phrase.Index, @"<span class=""u-lang"">" + phrase.Content + "</span>");
@@ -164,14 +164,14 @@ public class TranslateASPX : ToolBase
     private List<TRA> CropScriptsAndStyles(ref string body)
     {
         var list = new List<TRA>();
-        
+
 
         // Scripts
         Console.WriteLine("Scripts...");
         var regex = new Regex(@"<script((.|\n|\r)*?)>((.|\n|\r)*?)<\/script>", RegexOptions.Multiline | RegexOptions.IgnoreCase);
         var matches = regex.Matches(body);
         Console.WriteLine("Match count: " + matches.Count);
-        foreach(Match match in matches)
+        foreach (Match match in matches)
         {
             Console.WriteLine("Script match: " + match.Index);
             list.Add(new TRA()
@@ -198,7 +198,7 @@ public class TranslateASPX : ToolBase
 
         list.Reverse();
 
-        foreach(var i in list)
+        foreach (var i in list)
         {
             Console.WriteLine("Shift: " + i.Length);
             body = body.Remove(i.Index, i.Length);
@@ -211,7 +211,7 @@ public class TranslateASPX : ToolBase
 
     private void PushScriptsAndStyles(ref string body, List<TRA> list)
     {
-        foreach(var i in list)
+        foreach (var i in list)
         {
             body = body.Insert(i.Index, i.Content);
         }
@@ -219,9 +219,9 @@ public class TranslateASPX : ToolBase
 
     private void ShiftList(List<TRA> list, int cur, int shift)
     {
-        foreach(var i in list)
+        foreach (var i in list)
         {
-            if(i.Index > cur)
+            if (i.Index > cur)
             {
                 i.Index += shift;
             }
@@ -230,12 +230,13 @@ public class TranslateASPX : ToolBase
 
     public void ProcessPhrase(string str)
     {
-        if(Dict.ContainsKey(str))
+        if (Dict.ContainsKey(str))
             return;
 
         Console.WriteLine("Translating: " + str);
         string tra = LangUtil.Translate(str.Trim(), "es-ES");
-        Dict.Add(str, new LangItem() {
+        Dict.Add(str, new LangItem()
+        {
             en = str,
             es = tra
         });
@@ -249,7 +250,7 @@ public class TranslateASPX : ToolBase
     public bool IsTranslated(string body, string val)
     {
         var n = body.IndexOf(val);
-        return body.Substring(n-21, 21) == "<span class=\"u-lang\">";
+        return body.Substring(n - 21, 21) == "<span class=\"u-lang\">";
     }
 
 }

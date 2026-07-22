@@ -36,7 +36,7 @@ public class TranslateCSharp : ToolBase
 
         if (File.Exists("dict.json")) File.Delete("dict.json");
 
-        LangUtil.Init("google-cloud.json");
+        //LangUtil.Init("google-cloud.json");
 
         var files = Directory.GetFiles(args[1], "*.cs", SearchOption.AllDirectories);
         using (var jsonFile = File.OpenWrite("dict.json"))
