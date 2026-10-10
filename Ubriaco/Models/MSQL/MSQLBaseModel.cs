@@ -225,6 +225,9 @@ public class MSQLBaseModel : RootModel
     public virtual void Populate(DbDataReader r)
     {
         PropertyInfo[] fields = this.GetType().GetProperties();
+        var ordinals = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < r.FieldCount; i++)
+            ordinals.TryAdd(r.GetName(i), i);
         foreach (PropertyInfo f in fields)
         {
             if (!f.CanWrite) continue;
@@ -233,9 +236,9 @@ public class MSQLBaseModel : RootModel
 
             try
             {
-                if (!HasColumn(r, vname))
+                if (!ordinals.TryGetValue(vname, out int ordinal))
                     continue;
-                if (r[vname] == DBNull.Value)
+                if (r.IsDBNull(ordinal))
                     continue;
 
                 if (f.PropertyType == typeof(int))
@@ -680,6 +683,8 @@ public class MSQLBaseModel : RootModel
                 qvars += " AND ";
             qvars += GetRealDataFieldName(f) + "=@" + f.Name;
         }
+        if (qvars.Length == 0)
+            throw new InvalidOperationException("Delete requires at least one predicate.");
         try
         {
             using (SqlCommand cmd = new SqlCommand("DELETE FROM " + tableName + " WHERE " + qvars, c))
@@ -722,7 +727,10 @@ public class MSQLBaseModel : RootModel
 
         }
 
-        Console.WriteLine(JsonConvert.SerializeObject(idList));
+        if (idList.Count == 0)
+            throw new InvalidOperationException("Update requires at least one identity field.");
+        if (qvars.Count == 0)
+            throw new InvalidOperationException("Update requires at least one data field.");
         DbCommand cmd;
         if (c.GetType() == typeof(SqlConnection))
         {
@@ -734,8 +742,10 @@ public class MSQLBaseModel : RootModel
         {
             throw new Exception("No DB type supported.");
         }
-        await cmd.ExecuteNonQueryAsync();
-        await cmd.DisposeAsync();
+        await using (cmd)
+        {
+            await cmd.ExecuteNonQueryAsync();
+        }
     }
 
     public virtual async Task Update2Async(SQLBaseConnection c, string q, string tableName = null, string idName = "ID")
@@ -751,7 +761,7 @@ public class MSQLBaseModel : RootModel
 
     public virtual async Task UpdateAsync(DbConnection c, List<string> q, string tableName = null, string idName = "ID")
     {
-        await UpdateAsync(c, q, tableName, idName);
+        await UpdateAsync(c, q, tableName, idName, null);
     }
 
     public virtual async Task UpdateAsync(DbConnection c, List<string> q, string tableName, string idName, List<string> exclude)
@@ -770,11 +780,17 @@ public class MSQLBaseModel : RootModel
                 idList.Add(GetRealDataFieldName(f) + "=@" + f.Name);
                 continue;
             }
+            if (q != null && !q.Contains(f.Name))
+                continue;
             if (exclude != null && exclude.Contains(f.Name))
                 continue;
             qvars.Add(GetRealDataFieldName(f) + "=@" + f.Name);
 
         }
+        if (idList.Count == 0)
+            throw new InvalidOperationException("Update requires at least one identity field.");
+        if (qvars.Count == 0)
+            throw new InvalidOperationException("Update requires at least one selected data field.");
 
         DbCommand cmd;
         if (c.GetType() == typeof(SqlConnection))
@@ -786,8 +802,10 @@ public class MSQLBaseModel : RootModel
         {
             throw new Exception("No DB type supported.");
         }
-        await cmd.ExecuteNonQueryAsync();
-        await cmd.DisposeAsync();
+        await using (cmd)
+        {
+            await cmd.ExecuteNonQueryAsync();
+        }
     }
 
 
@@ -827,16 +845,18 @@ public class MSQLBaseModel : RootModel
         {
             throw new Exception("No DB type supported.");
         }
-        using (DbDataReader r = await cmd.ExecuteReaderAsync())
+        await using (cmd)
         {
-            if (await r.ReadAsync())
+            using (DbDataReader r = await cmd.ExecuteReaderAsync())
             {
-                Populate(r);
-                return true;
+                if (await r.ReadAsync())
+                {
+                    Populate(r);
+                    return true;
+                }
             }
+            return false;
         }
-        cmd.Dispose();
-        return false;
     }
 
     public virtual async Task<List<T>> List2Async<T>(SQLBaseConnection c, string q, string tableName = null, string sort = null, int limit = 0) where T : MSQLBaseModel
@@ -881,17 +901,19 @@ public class MSQLBaseModel : RootModel
         {
             throw new Exception("No DB type supported.");
         }
-        using (DbDataReader r = await cmd.ExecuteReaderAsync())
+        await using (cmd)
         {
-            while (await r.ReadAsync())
+            using (DbDataReader r = await cmd.ExecuteReaderAsync())
             {
-                T item = (T)Activator.CreateInstance(this.GetType());
-                item.Populate(r);
-                list.Add(item);
+                while (await r.ReadAsync())
+                {
+                    T item = (T)Activator.CreateInstance(this.GetType());
+                    item.Populate(r);
+                    list.Add(item);
+                }
             }
+            return list;
         }
-        await cmd.DisposeAsync();
-        return list;
     }
 
     public virtual void CreateFKeys(SqlConnection c)
@@ -1207,6 +1229,8 @@ public class MSQLBaseModel : RootModel
     public static async Task<T?> GetFromIDAsync<T>(SQLBaseConnection db, int id) where T : MSQLBaseModel
     {
         var model = Activator.CreateInstance<T>();
+        if (!model.SetProp("ID", id))
+            throw new InvalidOperationException("Model does not have a writable ID property.");
         if (await model.SelectAsync(db.Connection, model.QueryById()))
             return model;
         return null;

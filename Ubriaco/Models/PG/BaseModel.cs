@@ -118,7 +118,7 @@ public class BaseModel : RootModel
         foreach (PropertyInfo f in fields)
         {
             if (!IsDataField(f) || !f.CanWrite || f.Name == "ID")
-                return;
+                continue;
             if (f.GetCustomAttribute<ColEditable>() == null)
             {
                 f.SetValue(this, f.GetValue(defaultItem));
@@ -153,7 +153,7 @@ public class BaseModel : RootModel
                 else if (f.PropertyType == typeof(DateTime) && r[vname] != DBNull.Value)
                     f.SetValue(this, DateTime.Parse(QGetString(r, vname)));
                 else if (f.PropertyType == typeof(bool))
-                    f.SetValue(this, r[vname] == DBNull.Value ? false : (QGetInt(r, vname) == 0 ? false : true));
+                    f.SetValue(this, Convert.ToBoolean(r[vname]));
                 else
                 {
                     var t = f.PropertyType;
@@ -633,7 +633,7 @@ public class BaseModel : RootModel
 
     public virtual Task<long> InsertTXAsync(BaseConnection c, UTransaction tx, bool identityInsert = false, bool onlyEditable = false)
     {
-        return InsertAsync(c, null, false, false, tx);
+        return InsertAsync(c, null, identityInsert, onlyEditable, tx);
     }
 
     public virtual async Task<long> TryInsertAsync(BaseConnection c, string? tableName = null, bool identityInsert = false, bool onlyEditable = false)
@@ -747,7 +747,6 @@ public class BaseModel : RootModel
     public virtual bool DeleteFromId(BaseConnection c, string? tableName = null)
     {
         return DeleteFromId((NpgsqlConnection)c.C, tableName);
-        throw new Exception("No DB type supported.");
     }
 
     public virtual bool DeleteFromId(DbConnection c, string? tableName = null)
@@ -770,6 +769,8 @@ public class BaseModel : RootModel
                 qvars += " AND ";
             qvars += GetRealDataFieldName(f) + "=@" + f.Name;
         }
+        if (qvars.Length == 0)
+            throw new InvalidOperationException("DeleteFromNN requires at least one data field predicate.");
         try
         {
             using (NpgsqlCommand cmd = new NpgsqlCommand("DELETE FROM " + GetDefaultSchema() + "." + tableName + " WHERE " + qvars, c))
@@ -892,7 +893,7 @@ public class BaseModel : RootModel
         await _UpdateAsync(c.C, new List<string>(qq), tableName, idName);
     }
 
-    public virtual async Task _UpdateAsync(DbConnection c, List<string> q, string? tableName = null, string? idName = null, List<string>? exclude = null)
+    public virtual async Task _UpdateAsync(DbConnection c, List<string> q, string? tableName = null, string? idName = "ID", List<string>? exclude = null)
     {
         if (tableName == null) tableName = GetDefaultTable();
         string qvars = "";
@@ -1479,7 +1480,7 @@ public class BaseModel : RootModel
 
     public virtual bool CreateTable(BaseConnection c, bool includeExternalID = false)
     {
-        return CreateTable(c.C, false);
+        return CreateTable(c.C, includeExternalID);
     }
 
     private bool CreateTable(DbConnection c, bool includeExternalID = false)
@@ -1537,7 +1538,7 @@ public class BaseModel : RootModel
 
     public virtual Task<bool> CreateTableAsync(BaseConnection c, bool includeExternalID = false)
     {
-        return CreateTableAsync(c.C, false);
+        return CreateTableAsync(c.C, includeExternalID);
     }
 
     private async Task<bool> CreateTableAsync(DbConnection c, bool includeExternalID = false)
@@ -2031,7 +2032,7 @@ public class BaseModel : RootModel
     {
         try
         {
-            CreateIndex(db, indexDefinition, unique, indexName);
+            CreateIndex(db, indexDefinition, unique, indexName, gin);
             return true;
         }
         catch
@@ -2044,7 +2045,7 @@ public class BaseModel : RootModel
     {
         try
         {
-            await CreateIndexAsync(db, indexDefinition, unique, indexName);
+            await CreateIndexAsync(db, indexDefinition, unique, indexName, gin);
             return true;
         }
         catch
