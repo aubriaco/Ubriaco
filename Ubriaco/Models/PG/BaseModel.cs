@@ -2,8 +2,7 @@
  *  Copyright (c) by Alessandro Ubriaco. All rights reserved.
  *--------------------------------------------------------------------------------------------*/
 
-
-
+using System.Collections.Concurrent;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Npgsql;
@@ -20,6 +19,12 @@ namespace Ubriaco.Models;
 
 public class BaseModel : RootModel
 {
+    // Reflection metadata is shared across instances; legacy column mapping remains instance-specific.
+    private static readonly ConcurrentDictionary<Type, PropertyInfo[]> PropertyCache = new();
+
+    private PropertyInfo[] GetCachedProperties() =>
+        PropertyCache.GetOrAdd(GetType(), static type => type.GetProperties());
+
     public static int SQLV = 6;
 
     public long ID { get; set; }
@@ -100,7 +105,7 @@ public class BaseModel : RootModel
 
     public virtual void CopyFrom(BaseModel other)
     {
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             try
@@ -114,7 +119,7 @@ public class BaseModel : RootModel
     public virtual void EmptyNonEditable()
     {
         var defaultItem = Activator.CreateInstance(this.GetType());
-        var fields = this.GetType().GetProperties();
+        var fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (!IsDataField(f) || !f.CanWrite || f.Name == "ID")
@@ -128,7 +133,7 @@ public class BaseModel : RootModel
 
     public virtual void Populate(DbDataReader r)
     {
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             string vname = GetRealDataFieldName(f);
@@ -174,7 +179,7 @@ public class BaseModel : RootModel
     public virtual Dictionary<string, object> PopulateDict(DbDataReader r)
     {
         var dict = new Dictionary<string, object>();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             string vname = GetRealDataFieldName(f);
@@ -208,7 +213,7 @@ public class BaseModel : RootModel
         if (inObj == null)
             throw new Exception("PopulateFromJsonObject: Input object is null.");
 
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (f.Name == "MasterID")
@@ -227,7 +232,7 @@ public class BaseModel : RootModel
 
     public virtual void PopulateFromDynamic(dynamic o)
     {
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             //if (f.Name[0] == '_')
@@ -263,7 +268,7 @@ public class BaseModel : RootModel
 
     public virtual bool SetProp(string propName, dynamic value)
     {
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (f.Name == propName)
@@ -285,7 +290,7 @@ public class BaseModel : RootModel
     {
         if (o == null)
             return;
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             //if (f.Name[0] == '_')
@@ -380,7 +385,7 @@ public class BaseModel : RootModel
             Debug.WriteLine(e.StackTrace);
             return;
         }
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (onlyEditable)
@@ -438,7 +443,7 @@ public class BaseModel : RootModel
             Debug.WriteLine(e.StackTrace);
             return;
         }
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (f.Name == "MasterID")
@@ -481,7 +486,7 @@ public class BaseModel : RootModel
 
     public virtual void PopulateFromModel(BaseModel other, bool onlyEditable = true)
     {
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (onlyEditable)
@@ -512,7 +517,7 @@ public class BaseModel : RootModel
 
     public virtual void PutParams(NpgsqlCommand cmd, bool onlyEditable = false)
     {
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (!IsDataField(f))
@@ -580,7 +585,7 @@ public class BaseModel : RootModel
     {
         if (tableName == null) tableName = GetDefaultTable();
         string qvars = "", vvars = "";
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if ((f.Name == "ID" && !identityInsert) || !IsDataField(f))
@@ -608,7 +613,7 @@ public class BaseModel : RootModel
     {
         if (tableName == null) tableName = GetDefaultTable();
         string qvars = "", vvars = "";
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if ((f.Name == "ID" && !identityInsert) || !IsDataField(f))
@@ -662,7 +667,7 @@ public class BaseModel : RootModel
     {
         if (tableName == null) tableName = GetDefaultTable();
         string qvars = "", vvars = "";
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (f.Name == "ID" || !IsDataField(f))
@@ -760,7 +765,7 @@ public class BaseModel : RootModel
     {
         if (tableName == null) tableName = GetDefaultTable();
         string qvars = "";
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (f.Name == "ID" || !IsDataField(f))
@@ -799,7 +804,7 @@ public class BaseModel : RootModel
         string tableName = GetDefaultTable();
         string idName = "id";
         string qvars = "";
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (f.Name == "ID" || !IsDataField(f) || IsIdentity(f))
@@ -812,11 +817,14 @@ public class BaseModel : RootModel
             }
             qvars += GetRealDataFieldName(f) + "=@" + f.Name;
         }
+        if (qvars.Length == 0)
+            throw new InvalidOperationException("Update requires at least one selected data field.");
         DbCommand cmd;
         if (c.GetType() == typeof(NpgsqlConnection))
         {
-            using (cmd = new NpgsqlCommand("UPDATE " + GetDefaultSchema() + "." + tableName + " SET " + qvars + " WHERE " + idName + "=" + ID, (NpgsqlConnection)c))
+            using (cmd = new NpgsqlCommand("UPDATE " + GetDefaultSchema() + "." + tableName + " SET " + qvars + " WHERE " + idName + "=@__model_id", (NpgsqlConnection)c))
             {
+                ((NpgsqlCommand)cmd).Parameters.AddWithValue("@__model_id", ID);
                 PutParams((NpgsqlCommand)cmd, onlyEditable);
                 cmd.ExecuteNonQuery();
             }
@@ -836,7 +844,7 @@ public class BaseModel : RootModel
         string tableName = GetDefaultTable();
         string idName = "id";
         string qvars = "";
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (f.Name == "ID" || !IsDataField(f) || IsIdentity(f))
@@ -849,11 +857,14 @@ public class BaseModel : RootModel
             }
             qvars += GetRealDataFieldName(f) + "=@" + f.Name;
         }
+        if (qvars.Length == 0)
+            throw new InvalidOperationException("Update requires at least one selected data field.");
         DbCommand cmd;
         if (c.C.GetType() == typeof(NpgsqlConnection))
         {
-            using (cmd = new NpgsqlCommand("UPDATE " + GetDefaultSchema() + "." + tableName + " SET " + qvars + " WHERE " + idName + "=" + ID, (NpgsqlConnection)c.C, tx != null ? tx.T : null))
+            using (cmd = new NpgsqlCommand("UPDATE " + GetDefaultSchema() + "." + tableName + " SET " + qvars + " WHERE " + idName + "=@__model_id", (NpgsqlConnection)c.C, tx != null ? tx.T : null))
             {
+                ((NpgsqlCommand)cmd).Parameters.AddWithValue("@__model_id", ID);
                 PutParams((NpgsqlCommand)cmd, onlyEditable);
                 await cmd.ExecuteNonQueryAsync();
             }
@@ -897,7 +908,7 @@ public class BaseModel : RootModel
     {
         if (tableName == null) tableName = GetDefaultTable();
         string qvars = "";
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (f.Name == "ID" || !IsDataField(f) || IsIdentity(f) || !q.Contains(f.Name))
@@ -910,11 +921,14 @@ public class BaseModel : RootModel
             }
             qvars += GetRealDataFieldName(f) + "=@" + f.Name;
         }
+        if (qvars.Length == 0)
+            throw new InvalidOperationException("Update requires at least one selected data field.");
         DbCommand cmd;
         if (c.GetType() == typeof(NpgsqlConnection))
         {
-            using (cmd = new NpgsqlCommand("UPDATE " + GetDefaultSchema() + "." + tableName + " SET " + qvars + " WHERE " + idName + "=" + ID, (NpgsqlConnection)c))
+            using (cmd = new NpgsqlCommand("UPDATE " + GetDefaultSchema() + "." + tableName + " SET " + qvars + " WHERE " + idName + "=@__model_id", (NpgsqlConnection)c))
             {
+                ((NpgsqlCommand)cmd).Parameters.AddWithValue("@__model_id", ID);
                 PutParams((NpgsqlCommand)cmd);
                 await cmd.ExecuteNonQueryAsync();
             }
@@ -940,7 +954,7 @@ public class BaseModel : RootModel
     {
         if (tableName == null) tableName = GetDefaultTable();
         string qvars = "";
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (f.Name == "ID" || !IsDataField(f) || IsIdentity(f) || !q.Contains(f.Name))
@@ -953,11 +967,14 @@ public class BaseModel : RootModel
             }
             qvars += GetRealDataFieldName(f) + "=@" + f.Name;
         }
+        if (qvars.Length == 0)
+            throw new InvalidOperationException("Update requires at least one selected data field.");
         DbCommand cmd;
         if (c.GetType() == typeof(NpgsqlConnection))
         {
-            using (cmd = new NpgsqlCommand("UPDATE " + GetDefaultSchema() + "." + tableName + " SET " + qvars + " WHERE " + idName + "=" + ID, (NpgsqlConnection)c))
+            using (cmd = new NpgsqlCommand("UPDATE " + GetDefaultSchema() + "." + tableName + " SET " + qvars + " WHERE " + idName + "=@__model_id", (NpgsqlConnection)c))
             {
+                ((NpgsqlCommand)cmd).Parameters.AddWithValue("@__model_id", ID);
                 PutParams((NpgsqlCommand)cmd);
                 cmd.ExecuteNonQuery();
             }
@@ -977,7 +994,7 @@ public class BaseModel : RootModel
     {
         if (tableName == null) tableName = GetDefaultTable();
         string qvars = "", rvars = "";
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (f.Name != "ID" && IsDataField(f) && !IsIdentity(f) && q.Contains(f.Name))
@@ -1041,7 +1058,7 @@ public class BaseModel : RootModel
             q = new string[] { _q };
 
         if (tableName == null) tableName = GetDefaultTable();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         string qvars = "";
         foreach (PropertyInfo f in fields)
         {
@@ -1080,7 +1097,7 @@ public class BaseModel : RootModel
     private bool Select(DbConnection c, List<string> q, string? tableName = null, string? orderBy = null)
     {
         if (tableName == null) tableName = GetDefaultTable();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         string qvars = "";
         foreach (PropertyInfo f in fields)
         {
@@ -1138,7 +1155,7 @@ public class BaseModel : RootModel
         else
             q = new string[] { _q };
         if (tableName == null) tableName = GetDefaultTable();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         string qvars = "";
         foreach (PropertyInfo f in fields)
         {
@@ -1160,7 +1177,7 @@ public class BaseModel : RootModel
                 {
                     if (await r.ReadAsync())
                     {
-                        Populate(r);
+                        ID = Convert.ToInt64(r[0]);
                         return true;
                     }
                 }
@@ -1177,7 +1194,7 @@ public class BaseModel : RootModel
     private bool SelectID(DbConnection c, string[] q, string? tableName = null, string? orderBy = null)
     {
         if (tableName == null) tableName = GetDefaultTable();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         string qvars = "";
         foreach (PropertyInfo f in fields)
         {
@@ -1199,7 +1216,7 @@ public class BaseModel : RootModel
                 {
                     if (r.Read())
                     {
-                        Populate(r);
+                        ID = Convert.ToInt64(r[0]);
                         return true;
                     }
                 }
@@ -1231,7 +1248,7 @@ public class BaseModel : RootModel
             throw new Exception("Connection is null.");
         List<T> list = new List<T>();
         if (tableName == null) tableName = GetDefaultTable();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         string qvars = "";
         if (q != null)
         {
@@ -1262,7 +1279,7 @@ public class BaseModel : RootModel
                 {
                     while (await r.ReadAsync())
                     {
-                        T? item = (T?)Activator.CreateInstance(this.GetType());
+                        T? item = (T?)Activator.CreateInstance(typeof(T));
                         if (item == null)
                             throw new Exception("Model is null.");
                         item.Populate(r);
@@ -1285,7 +1302,7 @@ public class BaseModel : RootModel
             throw new Exception("Connection is null.");
         List<Dictionary<string, object>> list = new List<Dictionary<string, object>>();
         if (tableName == null) tableName = GetDefaultTable();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         string qvars = "";
         if (q != null)
         {
@@ -1345,7 +1362,7 @@ public class BaseModel : RootModel
     {
         List<BaseModel> list = new List<BaseModel>();
         if (tableName == null) tableName = GetDefaultTable();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         string qvars = "";
         if (q != null)
         {
@@ -1390,7 +1407,7 @@ public class BaseModel : RootModel
     {
         List<T> list = new List<T>();
         if (tableName == null) tableName = GetDefaultTable();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         string qvars = "";
         if (q != null)
         {
@@ -1415,7 +1432,7 @@ public class BaseModel : RootModel
                 {
                     while (r.Read())
                     {
-                        T? item = (T?)Activator.CreateInstance(this.GetType());
+                        T? item = (T?)Activator.CreateInstance(typeof(T));
                         if (item == null)
                             throw new Exception("Model is null.");
                         item.Populate(r);
@@ -1486,7 +1503,7 @@ public class BaseModel : RootModel
     private bool CreateTable(DbConnection c, bool includeExternalID = false)
     {
         string tableName = GetDefaultTable();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         string qvars = "";
         foreach (PropertyInfo f in fields)
         {
@@ -1544,7 +1561,7 @@ public class BaseModel : RootModel
     private async Task<bool> CreateTableAsync(DbConnection c, bool includeExternalID = false)
     {
         string tableName = GetDefaultTable();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         string qvars = "";
         foreach (PropertyInfo f in fields)
         {
@@ -1624,12 +1641,12 @@ public class BaseModel : RootModel
     public List<string> QueryByNN()
     {
         List<string> q = new List<string>();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (f.Name == "ID" || !IsDataField(f) || f.GetValue(this) == null || (f.PropertyType == typeof(int) && (int?)f.GetValue(this) == 0) || f.PropertyType == typeof(DateTime))
                 continue;
-            q.Add(GetRealDataFieldName(f));
+            q.Add(f.Name);
         }
         return q;
     }
@@ -1721,7 +1738,7 @@ public class BaseModel : RootModel
         data += ";";
         data += "T:" + GetDefaultTable() ?? "";
         data += ";P:";
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (IsModelLocal(f))
@@ -1777,7 +1794,7 @@ public class BaseModel : RootModel
         }
         else
         {
-            PropertyInfo[] fields = this.GetType().GetProperties();
+            PropertyInfo[] fields = GetCachedProperties();
             foreach (PropertyInfo f in fields)
             {
                 if (IsModelLocal(f))
@@ -1842,7 +1859,7 @@ public class BaseModel : RootModel
         }
         else
         {
-            PropertyInfo[] fields = this.GetType().GetProperties();
+            PropertyInfo[] fields = GetCachedProperties();
             foreach (PropertyInfo f in fields)
             {
                 if (IsModelLocal(f))
@@ -1898,7 +1915,7 @@ public class BaseModel : RootModel
             modelInfo.CollectionTitle = modelInfo.Title + " List";
         modelInfo.Name = GetType().Name;
         modelInfo.Variables = new List<ModelVarInfo>();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             var colName = GetRealDataFieldName(f);

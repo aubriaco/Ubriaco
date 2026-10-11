@@ -3,7 +3,7 @@
  *--------------------------------------------------------------------------------------------*/
 
 
-using BridgeData.Attributes;
+using System.Collections.Concurrent;
 using Microsoft.Data.SqlClient;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -21,6 +21,12 @@ namespace Ubriaco.Models;
 // M to avoid confusion
 public class MSQLBaseModel : RootModel
 {
+    // Reflection metadata is shared across instances; legacy column mapping remains instance-specific.
+    private static readonly ConcurrentDictionary<Type, PropertyInfo[]> PropertyCache = new();
+
+    private PropertyInfo[] GetCachedProperties() =>
+        PropertyCache.GetOrAdd(GetType(), static type => type.GetProperties());
+
     public static DateTime MinDT = DateTime.Parse("1753-1-1"); // this has something to do with SQL
 
     public MSQLBaseModel()
@@ -131,7 +137,7 @@ public class MSQLBaseModel : RootModel
 
     public virtual void CopyFrom(MSQLBaseModel other)
     {
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             try
@@ -145,7 +151,7 @@ public class MSQLBaseModel : RootModel
     public virtual List<Diff> Compare(MSQLBaseModel other, bool ignoreNulls = false, bool ignoreBlanks = false)
     {
         List<Diff> list = new List<Diff>();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (!IsDataField(f) || f.Name == "__MDT" || f.Name == "CreatedDate" || f.Name == "MasterID" || f.Name == "IsSync" || f.Name == "HNSync")
@@ -177,7 +183,7 @@ public class MSQLBaseModel : RootModel
             else if (f.PropertyType == typeof(short))
             {
                 diff.Type = "SMALLINT";
-                if ((int)diff.Current != (int)diff.Other)
+                if ((short)diff.Current != (short)diff.Other)
                     list.Add(diff);
             }
             else if (f.PropertyType == typeof(double))
@@ -224,7 +230,7 @@ public class MSQLBaseModel : RootModel
     // Performance optimization required here
     public virtual void Populate(DbDataReader r)
     {
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         var ordinals = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         for (int i = 0; i < r.FieldCount; i++)
             ordinals.TryAdd(r.GetName(i), i);
@@ -284,7 +290,7 @@ public class MSQLBaseModel : RootModel
 
     public virtual void PopulateFromDynamic(dynamic o)
     {
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (!f.CanWrite || f.Name == "MasterID")
@@ -316,7 +322,7 @@ public class MSQLBaseModel : RootModel
 
     public virtual bool SetProp(string propName, dynamic value)
     {
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (f.Name == propName)
@@ -338,7 +344,7 @@ public class MSQLBaseModel : RootModel
     {
         if (o == null)
             return;
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             //if (f.Name[0] == '_')
@@ -436,7 +442,7 @@ public class MSQLBaseModel : RootModel
         {
             return;
         }
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (onlyEditable)
@@ -489,7 +495,7 @@ public class MSQLBaseModel : RootModel
         {
             return;
         }
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (f.Name == "MasterID")
@@ -530,7 +536,7 @@ public class MSQLBaseModel : RootModel
 
     public virtual void PutParams(SqlCommand cmd)
     {
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (!IsDataField(f))
@@ -548,7 +554,7 @@ public class MSQLBaseModel : RootModel
             {
                 var dt = (DateTime?)f.GetValue(this);
                 if (dt != null)
-                    cmd.Parameters.AddWithValue(f.Name, dt.Value.ToShortDateString() + " " + dt.Value.ToShortTimeString());
+                    cmd.Parameters.AddWithValue(f.Name, dt.Value);
                 else
                     cmd.Parameters.AddWithValue(f.Name, DBNull.Value);
             }
@@ -559,7 +565,7 @@ public class MSQLBaseModel : RootModel
                     cmd.Parameters.AddWithValue(f.Name, DBNull.Value);
                 else
                 {
-                    cmd.Parameters.AddWithValue(f.Name, dt.ToShortDateString() + " " + dt.ToShortTimeString());
+                    cmd.Parameters.AddWithValue(f.Name, dt);
                 }
             }
             /*
@@ -603,7 +609,7 @@ public class MSQLBaseModel : RootModel
         PreInsert(c);
         if (tableName == null) tableName = GetDefaultTable();
         string qvars = "", vvars = "";
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if ((IsIncrement(f) && !identityInsert) || !IsDataField(f))
@@ -636,7 +642,7 @@ public class MSQLBaseModel : RootModel
     {
         if (tableName == null) tableName = GetDefaultTable();
         string qvars = "", vvars = "";
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (f.Name == "ID" || !IsDataField(f))
@@ -674,7 +680,7 @@ public class MSQLBaseModel : RootModel
         PreDelete(c);
         if (tableName == null) tableName = GetDefaultTable();
         string qvars = "";
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (f.Name == "ID" || !IsDataField(f))
@@ -691,7 +697,6 @@ public class MSQLBaseModel : RootModel
             {
                 PutParams(cmd);
                 await cmd.ExecuteNonQueryAsync();
-                Console.WriteLine(cmd.CommandText);
             }
             return true;
         }
@@ -711,7 +716,7 @@ public class MSQLBaseModel : RootModel
         if (tableName == null) tableName = GetDefaultTable();
         var qvars = new List<string>();
         var idList = new List<string>();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (!IsDataField(f))
@@ -735,7 +740,6 @@ public class MSQLBaseModel : RootModel
         if (c.GetType() == typeof(SqlConnection))
         {
             cmd = new SqlCommand("UPDATE " + tableName + " SET " + string.Join(", ", qvars) + " WHERE " + string.Join(" AND ", idList), (SqlConnection)c);
-            Console.WriteLine(cmd.CommandText);
             PutParams((SqlCommand)cmd);
         }
         else
@@ -770,7 +774,7 @@ public class MSQLBaseModel : RootModel
         if (tableName == null) tableName = GetDefaultTable();
         var qvars = new List<string>();
         var idList = new List<string>();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (!IsDataField(f))
@@ -823,7 +827,7 @@ public class MSQLBaseModel : RootModel
     public virtual async Task<bool> SelectAsync(DbConnection c, List<string> q, string? tableName = null, string? orderBy = null)
     {
         if (tableName == null) tableName = GetDefaultTable();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         string qvars = "";
         foreach (PropertyInfo f in fields)
         {
@@ -876,7 +880,7 @@ public class MSQLBaseModel : RootModel
     {
         List<T> list = new List<T>();
         if (tableName == null) tableName = GetDefaultTable();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         string qvars = "";
         if (q != null)
         {
@@ -907,7 +911,7 @@ public class MSQLBaseModel : RootModel
             {
                 while (await r.ReadAsync())
                 {
-                    T item = (T)Activator.CreateInstance(this.GetType());
+                    T item = (T)Activator.CreateInstance(typeof(T))!;
                     item.Populate(r);
                     list.Add(item);
                 }
@@ -919,7 +923,7 @@ public class MSQLBaseModel : RootModel
     public virtual void CreateFKeys(SqlConnection c)
     {
         string tableName = GetDefaultTable();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
 
         foreach (var f in fields)
         {
@@ -953,7 +957,7 @@ public class MSQLBaseModel : RootModel
     public virtual bool CreateTable(DbConnection c, bool includeExternalID = false)
     {
         string tableName = GetDefaultTable();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
 
         var keyList = new List<string>();
         string qvars = "";
@@ -1073,12 +1077,12 @@ public class MSQLBaseModel : RootModel
     public List<string> QueryByNN()
     {
         List<string> q = new List<string>();
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (f.Name == "ID" || !IsDataField(f) || f.GetValue(this) == null || (f.PropertyType == typeof(int) && (int)f.GetValue(this) == 0) || f.PropertyType == typeof(DateTime))
                 continue;
-            q.Add(GetRealDataFieldName(f));
+            q.Add(f.Name);
         }
         return q;
     }
@@ -1168,7 +1172,7 @@ public class MSQLBaseModel : RootModel
     {
         string sol = "pragma solidity ^0.8.10;\n\n";
         sol += "contract " + this.GetType().Name + " {\n";
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (IsModelLocal(f))
@@ -1239,7 +1243,7 @@ public class MSQLBaseModel : RootModel
     public dynamic ToCamelCase()
     {
         dynamic o = new Dictionary<string, object>();
-        var props = this.GetType().GetProperties();
+        var props = GetCachedProperties();
         foreach (var prop in props)
         {
             string camelName;
@@ -1297,7 +1301,7 @@ public class MSQLBaseModel : RootModel
         data += ";";
         data += "T:" + GetDefaultTable() ?? "";
         data += ";P:";
-        PropertyInfo[] fields = this.GetType().GetProperties();
+        PropertyInfo[] fields = GetCachedProperties();
         foreach (PropertyInfo f in fields)
         {
             if (IsModelLocal(f))
@@ -1351,7 +1355,7 @@ public class MSQLBaseModel : RootModel
         }
         else
         {
-            PropertyInfo[] fields = this.GetType().GetProperties();
+            PropertyInfo[] fields = GetCachedProperties();
             foreach (PropertyInfo f in fields)
             {
                 if (IsModelLocal(f) || f.GetGetMethod() == null || !f.GetGetMethod().IsPublic)

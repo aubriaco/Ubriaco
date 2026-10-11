@@ -2,7 +2,7 @@
  *  Copyright (c) by Solusek Systems. All rights reserved.
  *--------------------------------------------------------------------------------------------*/
 
-namespace BridgeData.Attributes;
+namespace Ubriaco.Attributes;
 
 public class FKey : Attribute
 {
