@@ -151,6 +151,7 @@ function lang_filter_text(a) {
 
 
 function getLang(a) {
+    if (!a) return '';
     a = lang_filter_text(a);
     if (Lang && Lang[a] && Lang[a][CurrentLang]) {
         return Lang[a][CurrentLang];
@@ -182,10 +183,10 @@ function lang_getElementsWithText(root = document.body) {
 function scan_lang() {
     let eles = lang_getElementsWithText();
     for (const i of eles) {
-        if (!i.getAttribute('lang-data')) {
-            i.setAttribute('lang-data', i.innerText);
+        if (!i.getAttribute('lang-data'))
+            i.setAttribute('lang-data', i.textContent);
+        if (!i.getAttribute('lang-html'))
             i.setAttribute('lang-html', i.innerHTML);
-        }
     }
 }
 
@@ -197,14 +198,40 @@ function lang_loop() {
     for (const i of eles) {
         const langData = i.getAttribute('lang-data');
         const langHTML = i.getAttribute('lang-html');
-        const lang = getLang(langData);
-        if (lang) {
-            const ltext = lang_filter_text(lang);
-            const itext = lang_filter_text(i.innerText);
-            if (itext != ltext) {
-                const ls = lang_countLeadingSpaces(langData);
-                const ts = lang_countLeadingSpaces(langData);
-                i.innerHTML = langHTML.replace(langData, ' '.repeat(ls) + lang + ' '.repeat(ts));
+
+
+        if (langHTML) {
+            try {
+                let p = [langHTML];
+                if (langHTML.indexOf('<') >= 0) {
+                    p = [...langHTML.matchAll(/(?:^|>)([^<]+)(?=<|$)/g)]
+                        .map(match => match[1].trim())
+                        .filter(Boolean);
+                }
+
+                let newHTML = langHTML;
+
+                p.forEach(j => {
+                    const lang = getLang(j);
+
+                    if (lang) {
+                        const ltext = lang_filter_text(lang);
+                        const itext = lang_filter_text(j);
+                        if (itext != ltext) {
+                            const ls = lang_countLeadingSpaces(j);
+                            const ts = lang_countLeadingSpaces(j);
+                            if (langHTML)
+                                newHTML = newHTML.replace(j, ' '.repeat(ls) + lang + ' '.repeat(ts));
+                            else
+                                newHTML = ' '.repeat(ls) + lang + ' '.repeat(ts);
+                        }
+                    }
+                });
+
+                i.innerHTML = newHTML;
+            }
+            catch (e) {
+                console.error(e);
             }
         }
     }
@@ -229,7 +256,7 @@ function lang_loop() {
         const currents = document.getElementsByClassName('lang-current');
 
         for (const i of currents) {
-            i.innerText = currentLang.name;
+            i.textContent = currentLang.name;
         }
     }
 }
