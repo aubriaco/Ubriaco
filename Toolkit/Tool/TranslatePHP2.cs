@@ -66,6 +66,9 @@ public class TranslatePHP2 : ToolBase
                                         string post = match.Groups[2].Value;
                                         if (string.IsNullOrWhiteSpace(en)
                                             || en.Contains('>')
+                                            || en.Replace(" ", "").Contains("function()")
+                                            || en.Contains("{")
+                                            || en.Contains("}")
                                             || post.ToLower().Contains("title")
                                             || post.ToLower().Contains("script")
                                              || post.ToLower().Contains("style"))
