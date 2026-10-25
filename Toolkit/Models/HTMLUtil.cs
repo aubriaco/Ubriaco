@@ -75,4 +75,44 @@ internal static class HTMLUtil
             }
         }
     }
+
+    public static int CountLeadingSpaces(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return 0;
+
+        int count = 0;
+        for (int i = 0; i < input.Length; i++)
+        {
+            if (input[i] == ' ')
+            {
+                count++;
+            }
+            else
+            {
+                break; // Stop immediately at the first non-space character
+            }
+        }
+        return count;
+    }
+
+
+    public static int CountTrailingSpaces(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return 0;
+
+        int count = 0;
+        for (int i = input.Length - 1; i >= 0; i--)
+        {
+            if (input[i] == ' ')
+            {
+                count++;
+            }
+            else
+            {
+                break; // Stop immediately at the first non-space character
+            }
+        }
+        return count;
+    }
+
 }
