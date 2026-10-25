@@ -69,6 +69,25 @@ function lang_qpost(loc, data, successCallback, errorCallback) {
     });
 }
 
+function lang_setCookie(name, value, days = 30) {
+    const expires = new Date(Date.now() + days * 86400000).toUTCString();
+    const secure = location.protocol === 'https:' ? '; Secure' : '';
+
+    document.cookie =
+        `${encodeURIComponent(name)}=${encodeURIComponent(value)}` +
+        `; Expires=${expires}; Path=/; SameSite=Lax${secure}`;
+}
+
+function lang_getCookie(name) {
+    const prefix = `${encodeURIComponent(name)}=`;
+    const cookie = document.cookie
+        .split(';')
+        .map(item => item.trim())
+        .find(item => item.startsWith(prefix));
+
+    return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : null;
+}
+
 function setCurrentLang(a, c, setqs) {
     CurrentLangItem = a;
     CurrentLang = a.ident;
@@ -80,6 +99,8 @@ function setCurrentLang(a, c, setqs) {
         });
     }
 
+    lang_setCookie('lang_ident', a.ident, 365);
+
     if (setqs) {
         const url = new URL(window.location);
         url.searchParams.set('lang', CurrentLang);
@@ -87,12 +108,27 @@ function setCurrentLang(a, c, setqs) {
     }
 };
 
-function setCurrentLangByIdent(a, c, setqs) {
+function setCurrentLangByIdent(a, c, setqs, selectors) {
     Languages.forEach(i => {
         if (i.ident === a) {
             setCurrentLang(i, c, setqs);
         }
     });
+
+    try {
+        if (!selectors)
+            selectors = document.getElementsByClassName('lang-select');
+        Array.from(selectors).forEach(i => {
+            if (i.getAttribute('lang-ident') === a && !i.classList.contains('active'))
+                i.classList.add('active');
+            else if (i.classList.contains('active'))
+                i.classList.remove('active');
+        });
+    }
+    catch (e) {
+        console.error(e);
+    }
+
 };
 
 function loadLang(callback) {
@@ -107,16 +143,30 @@ function getCurrentLangItem() {
     return CurrentLangItem;
 }
 
-function getLang(a) {
+function lang_filter_text(a) {
     a = a.replace(/\n/g, ' ', /\r/, ' ').trim();
     while (a.indexOf('  ') >= 0) a = a.replace('  ', ' ');
+    return a;
+}
+
+
+function getLang(a) {
+    a = lang_filter_text(a);
     if (Lang && Lang[a] && Lang[a][CurrentLang]) {
         return Lang[a][CurrentLang];
     }
     return a;
 }
 
-function getElementsWithText(root = document.body) {
+function lang_countLeadingSpaces(str) {
+    return str.length - str.trimStart().length;
+}
+
+function lang_countTrailingSpaces(str) {
+    return str.length - str.trimEnd().length;
+}
+
+function lang_getElementsWithText(root = document.body) {
     return [root, ...root.querySelectorAll('*')].filter(element => {
         if (element.matches('script, style, noscript, template')) {
             return false;
@@ -130,7 +180,7 @@ function getElementsWithText(root = document.body) {
 }
 
 function scan_lang() {
-    let eles = getElementsWithText();
+    let eles = lang_getElementsWithText();
     for (const i of eles) {
         if (!i.getAttribute('lang-data')) {
             i.setAttribute('lang-data', i.innerText);
@@ -139,15 +189,10 @@ function scan_lang() {
     }
 }
 
-function lang_filter_text(a) {
-    a = a.replace(/\n/g, ' ', /\r/, ' ').trim();
-    while (a.indexOf('  ') >= 0) a = a.replace('  ', ' ');
-    return a;
-}
 
 function lang_loop() {
 
-    const eles = getElementsWithText();
+    const eles = lang_getElementsWithText();
 
     for (const i of eles) {
         const langData = i.getAttribute('lang-data');
@@ -157,7 +202,9 @@ function lang_loop() {
             const ltext = lang_filter_text(lang);
             const itext = lang_filter_text(i.innerText);
             if (itext != ltext) {
-                i.innerHTML = langHTML.replace(langData, lang);
+                const ls = lang_countLeadingSpaces(langData);
+                const ts = lang_countLeadingSpaces(langData);
+                i.innerHTML = langHTML.replace(langData, ' '.repeat(ls) + lang + ' '.repeat(ts));
             }
         }
     }
@@ -170,7 +217,7 @@ function lang_loop() {
             i._lang_listener = true;
             i.addEventListener('click', () => {
                 const ident = i.getAttribute('lang-ident');
-                setCurrentLangByIdent(ident, null, true);
+                setCurrentLangByIdent(ident, null, true, selectors);
             });
         }
     }
@@ -203,15 +250,25 @@ function lang_get_by_loc() {
             return qs;
         }
     }
-    return Lang_DefaultIdent;
+    return null;
+}
+
+function lang_get_by_cookie() {
+    console.log('cookie', lang_getCookie('lang_ident'));
+    return lang_getCookie('lang_ident');
 }
 
 document.addEventListener('DOMContentLoaded', function () {
     loadLang(() => {
         scan_lang();
-        const ident = lang_get_by_loc();
+        let ident = lang_get_by_loc();
+        if (!ident)
+            ident = lang_get_by_cookie();
+        if (!ident)
+            ident = Lang_DefaultIdent;
         if (ident)
             setCurrentLangByIdent(ident);
+        lang_loop();
         setInterval(lang_loop, 500);
     });
 });
