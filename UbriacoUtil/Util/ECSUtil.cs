@@ -200,4 +200,33 @@ public static class ECSUtil
 
         return System.Text.Encoding.UTF8.GetString(plainBytes);
     }
+
+    public static string FormatData(EncryptedData enc)
+    {
+        const char STX = (char)0x02; // Start of Text
+        const char ETX = (char)0x03; // End of Text
+
+        return "#####UBRIACO.CRYPT#####" + "\n" +
+            STX + enc.PublicKey + ETX +
+            STX + enc.Nonce + ETX +
+            STX + enc.Tag + ETX +
+            STX + enc.CipherText + ETX +
+            STX + enc.Signature + ETX +
+            "\n#####EOF#####\n";
+    }
+
+    public static EncryptedData ParseData(string contents)
+    {
+        var lines = contents.Split('\n');
+        var crypt = lines[1].Split((char)0x03);
+
+        return new EncryptedData
+        {
+            PublicKey = crypt[0].Substring(1),
+            Nonce = crypt[1].Substring(1),
+            Tag = crypt[2].Substring(1),
+            CipherText = crypt[3].Substring(1),
+            Signature = crypt[4].Substring(1)
+        };
+    }
 }
