@@ -13,7 +13,7 @@ namespace Ubriaco.Util
     /// </summary>
     public class RedisUtil : IDisposable
     {
-        private ConnectionMultiplexer? R;
+        private static ConnectionMultiplexer? R = null;
 
         private static string Host = "localhost";
         private static int Port = 6379;
@@ -50,14 +50,17 @@ namespace Ubriaco.Util
 
         public void Connect()
         {
-            R = ConnectionMultiplexer.Connect(
-                            new ConfigurationOptions
-                            {
-                                EndPoints = { Host + ":" + Port },
-                                Ssl = EnableSSL,
-                                SslProtocols = EnableSSL ? System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13 : System.Security.Authentication.SslProtocols.None,
-                                AbortOnConnectFail = false
-                            });
+            if (R == null)
+            {
+                R = ConnectionMultiplexer.Connect(
+                                new ConfigurationOptions
+                                {
+                                    EndPoints = { Host + ":" + Port },
+                                    Ssl = EnableSSL,
+                                    SslProtocols = EnableSSL ? System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13 : System.Security.Authentication.SslProtocols.None,
+                                    AbortOnConnectFail = false
+                                });
+            }
         }
 
         public async Task ConnectAsync()
@@ -448,10 +451,7 @@ namespace Ubriaco.Util
         /// </summary>
         public async void Dispose()
         {
-            if (AsyncMode)
-                R?.DisposeAsync();
-            else
-                R.Dispose();
+
         }
     }
 
