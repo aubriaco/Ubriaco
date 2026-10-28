@@ -75,7 +75,6 @@ public class TranslatePHP2 : ToolBase
                                             continue;
 
 
-                                        Console.WriteLine("EN: " + en);
                                         en = en.Replace("\\'", "'").Replace("\n", " ").Replace("\r", " ").Trim();
                                         while (en.Contains("  ")) en = en.Replace("  ", " ");
                                         if (string.IsNullOrWhiteSpace(en)) continue;
