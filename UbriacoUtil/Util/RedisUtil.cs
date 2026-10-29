@@ -65,14 +65,17 @@ namespace Ubriaco.Util
 
         public async Task ConnectAsync()
         {
-            R = await ConnectionMultiplexer.ConnectAsync(
-                new ConfigurationOptions
-                {
-                    EndPoints = { Host + ":" + Port },
-                    Ssl = EnableSSL,
-                    SslProtocols = EnableSSL ? System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13 : System.Security.Authentication.SslProtocols.None,
-                    AbortOnConnectFail = false
-                });
+            if (R == null)
+            {
+                R = await ConnectionMultiplexer.ConnectAsync(
+                    new ConfigurationOptions
+                    {
+                        EndPoints = { Host + ":" + Port },
+                        Ssl = EnableSSL,
+                        SslProtocols = EnableSSL ? System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13 : System.Security.Authentication.SslProtocols.None,
+                        AbortOnConnectFail = false
+                    });
+            }
         }
 
 
