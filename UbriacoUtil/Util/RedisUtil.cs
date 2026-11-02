@@ -81,8 +81,8 @@ namespace Ubriaco.Util
             finally { ConnectionGate.Release(); }
         }
 
-        // The complete acquisition executes on Redis atomically. Errors intentionally propagate:
-        // inability to contact Redis must never be interpreted as permission to acquire a slot.
+        // The complete acquisition executes on Redis atomically. Errors propagate to LockUtil,
+        // which deliberately allows the action on failure to preserve API availability.
         private const string AcquireLimitScript = @"
 local expires = tonumber(ARGV[2])
 local now = redis.call('TIME')
