@@ -14,6 +14,7 @@ namespace Ubriaco.Util
     public class RedisUtil : IDisposable
     {
         private static ConnectionMultiplexer? R = null;
+        private static readonly SemaphoreSlim ConnectionGate = new(1, 1);
 
         private static string Host = "localhost";
         private static int Port = 6379;
@@ -48,36 +49,75 @@ namespace Ubriaco.Util
                 Connect();
         }
 
+        private static ConfigurationOptions GetConfiguration() => new()
+        {
+            EndPoints = { Host + ":" + Port },
+            Ssl = EnableSSL,
+            SslProtocols = EnableSSL
+                ? System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13
+                : System.Security.Authentication.SslProtocols.None,
+            AbortOnConnectFail = false
+        };
+
         public void Connect()
         {
-            if (R == null)
+            ConnectionGate.Wait();
+            try
             {
-                R = ConnectionMultiplexer.Connect(
-                                new ConfigurationOptions
-                                {
-                                    EndPoints = { Host + ":" + Port },
-                                    Ssl = EnableSSL,
-                                    SslProtocols = EnableSSL ? System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13 : System.Security.Authentication.SslProtocols.None,
-                                    AbortOnConnectFail = false
-                                });
+                if (R == null)
+                    R = ConnectionMultiplexer.Connect(GetConfiguration());
             }
+            finally { ConnectionGate.Release(); }
         }
 
         public async Task ConnectAsync()
         {
-            if (R == null)
+            await ConnectionGate.WaitAsync();
+            try
             {
-                R = await ConnectionMultiplexer.ConnectAsync(
-                    new ConfigurationOptions
-                    {
-                        EndPoints = { Host + ":" + Port },
-                        Ssl = EnableSSL,
-                        SslProtocols = EnableSSL ? System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13 : System.Security.Authentication.SslProtocols.None,
-                        AbortOnConnectFail = false
-                    });
+                if (R == null)
+                    R = await ConnectionMultiplexer.ConnectAsync(GetConfiguration());
             }
+            finally { ConnectionGate.Release(); }
         }
 
+        // The complete acquisition executes on Redis atomically. Errors intentionally propagate:
+        // inability to contact Redis must never be interpreted as permission to acquire a slot.
+        private const string AcquireLimitScript = @"
+local expires = tonumber(ARGV[2])
+local now = redis.call('TIME')
+local nowMillis = tonumber(now[1]) * 1000 + math.floor(tonumber(now[2]) / 1000)
+if expires <= nowMillis then return 0 end
+local remaining = redis.call('GET', KEYS[1])
+if not remaining then
+    redis.call('SET', KEYS[1], tonumber(ARGV[1]) - 1)
+    redis.call('PEXPIREAT', KEYS[1], ARGV[2])
+    return 1
+end
+if tonumber(remaining) <= 0 then return 0 end
+redis.call('DECR', KEYS[1])
+if redis.call('PTTL', KEYS[1]) == -1 then
+    redis.call('PEXPIREAT', KEYS[1], ARGV[2])
+end
+return 1";
+
+        internal bool AcquireLimit(string key, int maxCount, DateTime expires)
+        {
+            if (maxCount <= 0) return false;
+            var result = R!.GetDatabase().ScriptEvaluate(AcquireLimitScript,
+                new RedisKey[] { Prefix + key },
+                new RedisValue[] { maxCount, new DateTimeOffset(expires.ToUniversalTime()).ToUnixTimeMilliseconds() });
+            return (long)result == 1;
+        }
+
+        internal async Task<bool> AcquireLimitAsync(string key, int maxCount, DateTime expires)
+        {
+            if (maxCount <= 0) return false;
+            var result = await R!.GetDatabase().ScriptEvaluateAsync(AcquireLimitScript,
+                new RedisKey[] { Prefix + key },
+                new RedisValue[] { maxCount, new DateTimeOffset(expires.ToUniversalTime()).ToUnixTimeMilliseconds() });
+            return (long)result == 1;
+        }
 
         public static async Task<RedisUtil> CreateAsync()
         {
@@ -204,7 +244,7 @@ namespace Ubriaco.Util
             try
             {
                 var db = R.GetDatabase();
-                return db.KeyExpireTime(key);
+                return db.KeyExpireTime(Prefix + key);
             }
             catch
             {
@@ -217,7 +257,7 @@ namespace Ubriaco.Util
             try
             {
                 var db = R.GetDatabase();
-                return await db.KeyExpireTimeAsync(key);
+                return await db.KeyExpireTimeAsync(Prefix + key);
             }
             catch
             {
@@ -369,7 +409,7 @@ namespace Ubriaco.Util
             try
             {
                 var db = R.GetDatabase();
-                var value = await db.ListRangeAsync(key, -1, -1);
+                var value = await db.ListRangeAsync(Prefix + key, -1, -1);
 
                 if (value.Length > 0)
                 {

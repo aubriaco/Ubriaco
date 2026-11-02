@@ -245,7 +245,10 @@ public class MSQLBaseModel : RootModel
                 if (!ordinals.TryGetValue(vname, out int ordinal))
                     continue;
                 if (r.IsDBNull(ordinal))
+                {
+                    f.SetValue(this, f.PropertyType.IsValueType ? Activator.CreateInstance(f.PropertyType) : null);
                     continue;
+                }
 
                 if (f.PropertyType == typeof(int))
                     f.SetValue(this, QGetInt(r, vname));

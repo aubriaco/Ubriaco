@@ -1,9 +1,8 @@
 /*---------------------------------------------------------------------------------------------
  *  Copyright (c) by Alessandro Ubriaco. All rights reserved.
  *--------------------------------------------------------------------------------------------*/
- 
- 
 
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -11,6 +10,106 @@ namespace Ubriaco.Util
 {
     public class CryptUtil
     {
+        private const string LegacySalt = "6238fcf6-72c9-4d97-a39b-f6ed9c45db93";
+        private const string PasswordPrefix = "UBPBKDF2$1$";
+        private const int PasswordIterations = 600000;
+        private const string EncryptionPrefix = "UBAESGCM$1$";
+        private const int EncryptionIterations = 210000;
+        private static readonly byte[] EncryptionHeader = Encoding.ASCII.GetBytes(EncryptionPrefix);
+
+        /// <summary>Creates a salted PBKDF2-SHA256 hash. Use VerifyPassword for comparisons.</summary>
+        public static string HashPasswordV2(string s)
+        {
+            ArgumentNullException.ThrowIfNull(s);
+            byte[] salt = RandomNumberGenerator.GetBytes(16);
+            byte[] hash = Rfc2898DeriveBytes.Pbkdf2(s, salt, PasswordIterations, HashAlgorithmName.SHA256, 32);
+            return PasswordPrefix + PasswordIterations.ToString(CultureInfo.InvariantCulture) + "$"
+                + Convert.ToBase64String(salt) + "$" + Convert.ToBase64String(hash);
+        }
+
+        /// <summary>Verifies both current hashes and the original fixed-salt SHA256 hashes.</summary>
+        public static bool VerifyPassword(string password, string storedHash)
+        {
+            ArgumentNullException.ThrowIfNull(password);
+            ArgumentNullException.ThrowIfNull(storedHash);
+            try
+            {
+                if (storedHash.StartsWith(PasswordPrefix, StringComparison.Ordinal))
+                {
+                    string[] parts = storedHash.Split('$');
+                    if (parts.Length != 5 || !int.TryParse(parts[2], NumberStyles.None,
+                        CultureInfo.InvariantCulture, out int iterations) || iterations < 1 || iterations > 2000000)
+                        return false;
+                    byte[] salt = Convert.FromBase64String(parts[3]);
+                    byte[] expected = Convert.FromBase64String(parts[4]);
+                    if (salt.Length != 16 || expected.Length != 32) return false;
+                    byte[] actual = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, HashAlgorithmName.SHA256, 32);
+                    return CryptographicOperations.FixedTimeEquals(actual, expected);
+                }
+                // A legacy hash is exactly one Base64 encoded SHA256 digest.
+                byte[] legacyExpected = Convert.FromBase64String(storedHash);
+                if (legacyExpected.Length != 32) return false;
+                byte[] legacyActual = SHA256.HashData(Encoding.UTF8.GetBytes(LegacySalt + password));
+                return CryptographicOperations.FixedTimeEquals(legacyActual, legacyExpected);
+            }
+            catch (FormatException) { return false; }
+        }
+
+        /// <summary>True when a successfully verified password should be hashed again and saved.</summary>
+        public static bool PasswordNeedsRehash(string storedHash)
+        {
+            ArgumentNullException.ThrowIfNull(storedHash);
+            return !storedHash.StartsWith(PasswordPrefix + PasswordIterations.ToString(CultureInfo.InvariantCulture) + "$", StringComparison.Ordinal);
+        }
+
+        /// <summary>Encrypts with PBKDF2-SHA256 and AES-GCM using a fresh salt and nonce.</summary>
+        public static string EncryptV2(string plainText, string secret)
+        {
+            ArgumentNullException.ThrowIfNull(plainText);
+            ArgumentException.ThrowIfNullOrEmpty(secret);
+            // Payload layout: salt(16), nonce(12), authentication tag(16), ciphertext.
+            byte[] payload = new byte[44 + Encoding.UTF8.GetByteCount(plainText)];
+            RandomNumberGenerator.Fill(payload.AsSpan(0, 28));
+            byte[] key = Rfc2898DeriveBytes.Pbkdf2(secret, payload.AsSpan(0, 16),
+                EncryptionIterations, HashAlgorithmName.SHA256, 32);
+            try
+            {
+                using var aes = new AesGcm(key, 16);
+                aes.Encrypt(payload.AsSpan(16, 12), Encoding.UTF8.GetBytes(plainText),
+                    payload.AsSpan(44), payload.AsSpan(28, 16), EncryptionHeader);
+                return EncryptionPrefix + Convert.ToBase64String(payload);
+            }
+            finally { CryptographicOperations.ZeroMemory(key); }
+        }
+
+        /// <summary>Decrypts current authenticated payloads and original AES-CBC payloads.</summary>
+        public static string DecryptV2(string encrypted, string secret)
+        {
+            ArgumentNullException.ThrowIfNull(encrypted);
+            ArgumentException.ThrowIfNullOrEmpty(secret);
+            if (!encrypted.StartsWith(EncryptionPrefix, StringComparison.Ordinal))
+                return Decrypt(encrypted, secret);
+
+            byte[] payload = Convert.FromBase64String(encrypted.Substring(EncryptionPrefix.Length));
+            if (payload.Length < 44) throw new CryptographicException("Invalid encrypted payload.");
+            byte[] key = Rfc2898DeriveBytes.Pbkdf2(secret, payload.AsSpan(0, 16),
+                EncryptionIterations, HashAlgorithmName.SHA256, 32);
+            byte[] plainBytes = new byte[payload.Length - 44];
+            try
+            {
+                using var aes = new AesGcm(key, 16);
+                aes.Decrypt(payload.AsSpan(16, 12), payload.AsSpan(44), payload.AsSpan(28, 16),
+                    plainBytes, EncryptionHeader);
+                return Encoding.UTF8.GetString(plainBytes);
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(key);
+                CryptographicOperations.ZeroMemory(plainBytes);
+            }
+        }
+
+        // Legacy API: output and behavior retained for existing integrations.
         private static string Salt { get; set; } = "6238fcf6-72c9-4d97-a39b-f6ed9c45db93";
 
         public static string HashPassword(string s)

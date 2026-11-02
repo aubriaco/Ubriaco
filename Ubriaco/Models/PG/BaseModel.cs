@@ -141,7 +141,11 @@ public class BaseModel : RootModel
             try
             {
                 if (r[vname] == DBNull.Value)
+                {
+                    if (f.CanWrite)
+                        f.SetValue(this, f.PropertyType.IsValueType ? Activator.CreateInstance(f.PropertyType) : null);
                     continue;
+                }
 
                 if (f.PropertyType == typeof(int))
                     f.SetValue(this, QGetInt(r, vname));
@@ -149,6 +153,8 @@ public class BaseModel : RootModel
                     f.SetValue(this, QGetLong(r, vname));
                 else if (f.PropertyType == typeof(uint))
                     f.SetValue(this, QGetUint(r, vname));
+                else if (f.PropertyType == typeof(float))
+                    f.SetValue(this, Convert.ToSingle(r[vname]));
                 else if (f.PropertyType == typeof(double))
                     f.SetValue(this, Convert.ToDouble(r[vname]));
                 else if (f.PropertyType == typeof(decimal))
@@ -564,7 +570,7 @@ public class BaseModel : RootModel
                 else
                     cmd.Parameters.AddWithValue(f.Name, (string)_val);
             }
-            else if (f.PropertyType == typeof(int) || f.PropertyType == typeof(long) || f.PropertyType == typeof(double) || f.PropertyType == typeof(decimal))
+            else if (f.PropertyType == typeof(int) || f.PropertyType == typeof(long) || f.PropertyType == typeof(float) || f.PropertyType == typeof(double) || f.PropertyType == typeof(decimal))
                 cmd.Parameters.AddWithValue(f.Name, f.GetValue(this) ?? 0);
             else if (f.PropertyType == typeof(uint))
                 cmd.Parameters.AddWithValue(f.Name, Convert.ToInt64(f.GetValue(this) ?? 0));
@@ -1500,35 +1506,23 @@ public class BaseModel : RootModel
         return CreateTable(c.C, includeExternalID);
     }
 
+    private string GetCreateTableColumns()
+    {
+        var columns = new List<string>();
+        foreach (PropertyInfo f in GetCachedProperties())
+        {
+            if (IsModelLocal(f)) continue;
+            columns.Add(f.Name == "ID"
+                ? "ID SERIAL PRIMARY KEY"
+                : GetRealDataFieldName(f) + " " + GetPropDBType(f) + " " + GetForeignKey(f));
+        }
+        return string.Join(", ", columns);
+    }
+
     private bool CreateTable(DbConnection c, bool includeExternalID = false)
     {
         string tableName = GetDefaultTable();
-        PropertyInfo[] fields = GetCachedProperties();
-        string qvars = "";
-        foreach (PropertyInfo f in fields)
-        {
-            if (IsModelLocal(f))
-                continue;
-            if (f.Name == "ID")
-            {
-                if (c.GetType() == typeof(NpgsqlConnection))
-                    qvars = "ID SERIAL PRIMARY KEY, " + qvars;
-                else
-                    throw new Exception("No DB type supported.");
-                continue;
-            }
-            if (qvars.Length > 0)
-            {
-                qvars += ", ";
-            }
-            if (c.GetType() == typeof(NpgsqlConnection))
-                qvars += GetRealDataFieldName(f) + " ";
-            else
-                throw new Exception("No DB type supported.");
-
-            qvars += GetPropDBType(f) + " " + GetForeignKey(f);
-
-        }
+        string qvars = GetCreateTableColumns();
 
         DbCommand cmd;
         if (c.GetType() == typeof(NpgsqlConnection))
@@ -1561,32 +1555,7 @@ public class BaseModel : RootModel
     private async Task<bool> CreateTableAsync(DbConnection c, bool includeExternalID = false)
     {
         string tableName = GetDefaultTable();
-        PropertyInfo[] fields = GetCachedProperties();
-        string qvars = "";
-        foreach (PropertyInfo f in fields)
-        {
-            if (IsModelLocal(f))
-                continue;
-            if (f.Name == "ID")
-            {
-                if (c.GetType() == typeof(NpgsqlConnection))
-                    qvars = "ID SERIAL PRIMARY KEY, " + qvars;
-                else
-                    throw new Exception("No DB type supported.");
-                continue;
-            }
-            if (qvars.Length > 0)
-            {
-                qvars += ", ";
-            }
-            if (c.GetType() == typeof(NpgsqlConnection))
-                qvars += GetRealDataFieldName(f) + " ";
-            else
-                throw new Exception("No DB type supported.");
-
-            qvars += GetPropDBType(f) + " " + GetForeignKey(f);
-
-        }
+        string qvars = GetCreateTableColumns();
 
         DbCommand cmd;
         if (c.GetType() == typeof(NpgsqlConnection))

@@ -73,7 +73,7 @@ namespace Ubriaco.Toolkit
                         foreach (var i in list)
                         {
 
-                            arr += "$scope.Lists." + modelName + ".push({ id: " + (int)i.GetType().GetProperty("ID").GetValue(i) + ", name: '" + ((string)i.GetType().GetProperty("Name").GetValue(i)).Replace("'", "\\'") + "' });";
+                            arr += "$scope.Lists." + modelName + ".push({ id: " + Convert.ToInt64(i.GetType().GetProperty("ID").GetValue(i)) + ", name: '" + ((string)i.GetType().GetProperty("Name").GetValue(i)).Replace("'", "\\'") + "' });";
                         }
 
                         js += arr;
