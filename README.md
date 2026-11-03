@@ -1,202 +1,240 @@
-Ubriaco.dll
-=======
+# Ubriaco.dll / UbriacoUtil.dll
 
-Welcome to the C#, PostgreSQL, SQL Server data layer and utilities library.
+C#/.NET libraries for model-based SQL data access and common application utilities.
 
-Ubriaco.dll maps class objects directly into PostgreSQL tables. Automatically creates SELECT/INSERT/UPDATE queries for every data model.
+**Ubriaco.dll** maps C# models to database tables and generates `SELECT`, `INSERT`, and `UPDATE` queries. It includes PostgreSQL and SQL Server clients. The examples below use PostgreSQL.
 
-Home page: [www.solusek.com](https://www.solusek.com)
+**UbriacoUtil.dll** provides utilities for caching, storage, encryption, OCR, SMTP, version handling, and request flood protection.
 
-Compiling
--------------
+Supports **.NET 10** and **.NET 8**.
 
-Run: `./build.sh` or `dotnet build -c Release`
+[Solusek Systems](https://www.solusek.com)
 
-Example
--------------
+## Build
 
-C# .NET 10 (also supports .NET 8)
+From the repository root, run:
 
-A model for table `public.bookpage`.
+```bash
+dotnet build -c Release
+```
 
-```C#
-using Ubriaco.Models;
+Alternatively, use the provided build script:
+
+```bash
+./build.sh
+```
+
+Use a .NET SDK compatible with the target framework you are building.
+
+## Quick start
+
+### 1. Define a model
+
+This model maps to the PostgreSQL table `public.bookpage`.
+
+```csharp
 using Ubriaco.Attributes;
+using Ubriaco.Data;
+using Ubriaco.Models;
 
 namespace ExampleProject.Models;
+
+public class BookImage
+{
+    public string FileIdent { get; set; } = string.Empty;
+    public string MimeType { get; set; } = string.Empty;
+}
 
 [Table("bookpage")]
 public class BookPage : BaseModel
 {
-    // A BIGINT property in table bookpage
+    // Maps to BIGINT.
     public long BookID { get; set; }
 
-    // A INT property in table bookpage
+    // Maps to INT.
     public int PageNumber { get; set; }
 
-    // By default all strings are VARCHAR(256) unless a VariableInfo is specified Ex. [VariableInfo("VARCHAR(500)")]
+    // Strings default to VARCHAR(256).
+    // Use [VariableInfo("VARCHAR(500)")] to specify a different length.
     public string? Author { get; set; }
 
-    // Creates/updates a TEXT column in table bookpage
     [VariableInfo("TEXT")]
     public string Text { get; set; } = string.Empty;
 
-    // Creates/updates a TEXT column in table bookpage
     [VariableInfo("TEXT")]
     public string IllustrationDescription { get; set; } = string.Empty;
 
-    // Any object based property will be stored in a TEXT column as a JSON serialization
+    // Object properties are serialized as JSON in a TEXT column.
     public BookImage? Image { get; set; }
 
-    // ModelLocal property does not get stored in database
+    // Excluded from database persistence.
     [ModelLocal]
     public string? ExtraStuff { get; set; }
 
-
-    // This gets executed on SyncStructure
+    // Called during SyncStructure.
     public override void CreateIndexes(BaseConnection db)
     {
-        base.CreateIndexes();
+        base.CreateIndexes(db);
 
-        // Normal Index
         TryCreateIndex(db, "BookID");
-
-        // Unique Index
         TryCreateIndex(db, "BookID,PageNumber", true);
     }
 }
 ```
 
-Initiate single model - create table and indexes.
+### 2. Configure the connection
 
-```C#
+Set the default connection string once during application startup. Supply credentials through your application's configuration rather than committing them to source control.
+
+```csharp
 using Ubriaco.Data;
 
-// Set global connection string
-BaseConnection.SetConnectionString("Server=localhost;Port=5432;Database=test;User ID=test;Password=test;Pooling=true");
+BaseConnection.SetConnectionString(connectionString);
+```
 
-// Non-async connection
-using(var db = new Database())
+Example PostgreSQL connection string:
+
+```text
+Server=localhost;Port=5432;Database=example;User ID=example;Password=<password>;Pooling=true
+```
+
+### 3. Synchronize the schema
+
+Create or update the table structure and indexes for a single model:
+
+```csharp
+using ExampleProject.Models;
+using Ubriaco.Data;
+
+using (var db = new Database())
 {
     new BookPage().SyncStructure(db);
 }
 ```
 
-Initiate all models.
+Or synchronize all discovered models derived from `BaseModel`:
 
-```C#
+```csharp
 using Ubriaco.Data;
 using Ubriaco.Toolkit;
 
-// Connection string can also be specified per connection
-using(var db = new Database("Server=localhost;Port=5432;Database=test;User ID=test;Password=test;Pooling=true"))
+// A connection string can also be supplied per connection.
+using (var db = new Database(connectionString))
 {
-    // Will find all models that extend BaseModel and call their SyncStructure method
     DataManager.SyncAllModels(db);
 }
 ```
 
-Insert and update data.
+Review schema changes before running synchronization against a production database.
 
-```C#
-using Ubriaco.Models;
+### 4. Insert and update
 
-// Async connection
-using(var db = await Database.CreateAsync())
+```csharp
+using System;
+using ExampleProject.Models;
+using Ubriaco.Data;
+
+using (var db = await Database.CreateAsync())
 {
-    var bookPage = new BookPage()
+    var bookPage = new BookPage
     {
         BookID = 1,
         PageNumber = 1,
         Author = "Test",
         Text = "The quick brown fox jumps over the lazy dog.",
-        IllustrationDescription = "A fox jumping over a sleeping dog",
-        Image = new BookImage()
+        IllustrationDescription = "A fox jumping over a sleeping dog.",
+        Image = new BookImage
         {
             FileIdent = Guid.NewGuid().ToString(),
             MimeType = "image/png"
         },
-        ExtraStuff = "This is not stored in the database."
+        ExtraStuff = "This value is not stored in the database."
     };
+
     bookPage.ID = await bookPage.InsertAsync(db);
 
     bookPage.Author = "Bob";
-
     await bookPage.UpdateAsync(db, "Author");
 }
-
 ```
 
-Select data.
+### 5. Select a row
 
-```C#
-using(var db = await Database.CreateAsync())
+Match a database column against the value on the model instance. This example selects a matching row by `BookID`; use the list example below to retrieve every page for a book.
+
+```csharp
+using System;
+using ExampleProject.Models;
+using Ubriaco.Data;
+
+using (var db = await Database.CreateAsync())
 {
-    var bookPage = new BookPage() { BookID = 1 };
+    var bookPage = new BookPage { BookID = 1 };
 
-    // Select single row by matching BookID with the value on object: 1
-    if(await bookPage.SelectAsync(db, "BookID"))
+    if (await bookPage.SelectAsync(db, "BookID"))
     {
-        Console.WriteLine($"Found book with increment ID {bookPage.ID} text: {bookPage.Text}");
+        Console.WriteLine($"Page ID {bookPage.ID}: {bookPage.Text}");
     }
     else
     {
-        Console.WriteLine($"BookPage with BookID {bookPage.ID} not found.")
+        Console.WriteLine(
+            $"No page found for BookID {bookPage.BookID}.");
     }
 }
 ```
 
-List data.
+### 6. List matching rows
 
-```C#
-using(var db = await Database.CreateAsync())
+Retrieve all pages with the specified `BookID`:
+
+```csharp
+using System;
+using ExampleProject.Models;
+using Ubriaco.Data;
+
+using (var db = await Database.CreateAsync())
 {
-    var bookPage = new BookPage() { BookID = 1 };
+    var bookPage = new BookPage { BookID = 1 };
+    var pages = await bookPage.ListAsync(db, "BookID");
 
-    // Selects all rows available by matching BookID with the value on object: 1
-    var list = await bookPage.ListAsync(db, "BookID");
-
-    if(list.Count > 0)
+    if (pages.Count == 0)
     {
-        foreach(var item in list)
+        Console.WriteLine($"No pages found for BookID {bookPage.BookID}.");
+    }
+    else
+    {
+        foreach (var page in pages)
         {
-            Console.WriteLine($"Increment ID {item.ID} text: {item.Text}");
+            Console.WriteLine($"Page ID {page.ID}: {page.Text}");
         }
     }
-    else
-    {
-        Console.WriteLine($"No BookPage rows with BookID {bookPage.ID} found.")
-    }
 }
 ```
 
-Breakdown and Dependencies
--------------
+## Libraries and dependencies
 
-`Ubriaco.dll` -> Serialize data models into SQL queries
+### Ubriaco.dll
 
-```text
-    Newtonsoft.Json -> JSON Parsing
-    Npgsql -> PostgreSQL Database Client
-    Microsoft.Data.SqlClient -> SQL Server Database Client
-```
+Model mapping, schema synchronization, and SQL query generation.
 
-`UbriacoUtil.dll` -> Simplified procedures and wrappers which include Cache, Storage, Rotating Encryption, OCR, Locks (for flood protection), AES256, SMTP, Version handling
+| Dependency | Purpose |
+| --- | --- |
+| Newtonsoft.Json | JSON serialization and parsing |
+| Npgsql | PostgreSQL client |
+| Microsoft.Data.SqlClient | SQL Server client |
 
-```text
-    StackExchange.Redis -> Redis used for sessions and data cache
-    Tesseract -> OCR
-    AWSSDK.S3 -> S3 AWS Storage
-    Google.Cloud.Storage.V1 -> Google Storage
-```
+### UbriacoUtil.dll
 
-Author
--------------
+Helpers and wrappers for caching, storage, rotating encryption, AES-256 encryption, OCR, SMTP, version handling, and locks for flood protection.
 
-Alessandro Ubriaco
-[www.alessandroubriaco.com](https://alessandroubriaco.com)
+| Dependency | Purpose |
+| --- | --- |
+| StackExchange.Redis | Redis-backed sessions and data caching |
+| Tesseract | Optical character recognition |
+| AWSSDK.S3 | Amazon S3 storage |
+| Google.Cloud.Storage.V1 | Google Cloud Storage |
 
-Notes from Author
--------------
+## Author
 
-Please excuse my brevity in the commit messages and various 'x'. Most changes are done under pressure. And I do trigger-happy commit.
+**Alessandro Ubriaco**  
+[alessandroubriaco.com](https://alessandroubriaco.com)
