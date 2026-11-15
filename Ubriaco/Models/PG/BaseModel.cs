@@ -44,11 +44,6 @@ public class BaseModel : RootModel
         Populate(r);
     }
 
-    public virtual void PreInsert() { }
-    public virtual void PostInsert() { }
-    public virtual void PreUpdate() { }
-    public virtual void PostUpdate() { }
-
     protected string QGetString(DbDataReader r, string n)
     {
         try
@@ -843,7 +838,7 @@ public class BaseModel : RootModel
 
     // COMMON ENTRY
 
-    public async Task UpdateAsync(BaseConnection c, bool onlyEditable = false, UTransaction? tx = null)
+    public virtual async Task UpdateAsync(BaseConnection c, bool onlyEditable = false, UTransaction? tx = null)
     {
         if (c.C == null)
             throw new Exception("Connection is null.");
@@ -881,7 +876,7 @@ public class BaseModel : RootModel
         }
     }
 
-    public Task UpdateTXAsync(BaseConnection c, UTransaction? tx = null)
+    public virtual Task UpdateTXAsync(BaseConnection c, UTransaction? tx = null)
     {
         return UpdateAsync(c, false, tx);
     }
